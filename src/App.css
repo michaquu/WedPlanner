@@ -1,0 +1,74 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.app-hero {
+  padding: 14px 0 8px;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(47, 125, 109, 0.12), transparent 45%),
+    radial-gradient(circle at 90% 0%, rgba(217, 130, 124, 0.16), transparent 40%);
+}
+
+.hero-stack {
+  align-items: flex-start;
+}
+
+.hero-add {
+  border: 1px solid rgba(47, 39, 36, 0.15);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.hero-title {
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  letter-spacing: -0.5px;
+}
+
+.app-main {
+  padding-bottom: 40px;
+}
+
+.planner-header {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(47, 39, 36, 0.12);
+  border-radius: 20px;
+  padding: 20px 24px;
+  box-shadow: 0 12px 35px rgba(47, 39, 36, 0.08);
+}
+
+.details-view {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 24px;
+  border: 1px solid rgba(47, 39, 36, 0.12);
+  padding: 24px;
+  box-shadow: 0 14px 40px rgba(47, 39, 36, 0.12);
+}
+
+.drag-overlay {
+  padding: 16px;
+  border-radius: 18px;
+  min-width: 220px;
+  border: 1px solid rgba(47, 39, 36, 0.12);
+  box-shadow: 0 18px 35px rgba(47, 39, 36, 0.18);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+@media (max-width: 768px) {
+  .app-hero {
+    padding: 10px 0 6px;
+  }
+
+  .hero-title {
+    font-size: clamp(1.25rem, 6vw, 1.6rem);
+  }
+
+  .planner-header {
+    padding: 16px 18px;
+  }
+
+  .details-view {
+    padding: 18px;
+  }
+}
