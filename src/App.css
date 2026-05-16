@@ -6,7 +6,13 @@
 }
 
 .app-hero {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   padding: 14px 0 8px;
+  border-bottom: 1px solid rgba(47, 39, 36, 0.08);
+  backdrop-filter: blur(12px);
+  background-color: rgba(246, 241, 234, 0.92);
   background:
     radial-gradient(circle at 10% 20%, rgba(47, 125, 109, 0.12), transparent 45%),
     radial-gradient(circle at 90% 0%, rgba(217, 130, 124, 0.16), transparent 40%);

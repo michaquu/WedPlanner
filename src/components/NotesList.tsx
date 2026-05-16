@@ -9,11 +9,11 @@ import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined
 import type { Note } from '../types'
 
 interface NotesListProps {
-  notes: Note[]
+  notes?: Note[]
   onRemove: (noteId: string) => void
 }
 
-const NotesList = ({ notes, onRemove }: NotesListProps) => {
+const NotesList = ({ notes = [], onRemove }: NotesListProps) => {
   if (!notes.length) {
     return (
       <Typography variant="body2" color="text.secondary">

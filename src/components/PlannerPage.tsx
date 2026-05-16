@@ -28,7 +28,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { v4 as uuid } from 'uuid'
-import type { Item, PlannerData, NoteType } from '../types'
+import type { Item, PlannerData, NoteType, Section } from '../types'
 import SectionAccordion from './SectionAccordion'
 import ItemDetailsView from './ItemDetailsView'
 
@@ -39,6 +39,10 @@ interface PlannerPageProps {
   onNavigateHandled: () => void
   hiddenSections: Record<string, boolean>
   setHiddenSections: Dispatch<SetStateAction<Record<string, boolean>>>
+  sectionOrder: string[]
+  setSectionOrder: Dispatch<SetStateAction<string[]>>
+  itemOrder: Record<string, string[]>
+  setItemOrder: Dispatch<SetStateAction<Record<string, string[]>>>
 }
 
 const COLLAPSE_KEY = 'wedding-planner-collapse-v1'
@@ -50,6 +54,10 @@ const PlannerPage = ({
   onNavigateHandled,
   hiddenSections,
   setHiddenSections,
+  sectionOrder,
+  setSectionOrder,
+  itemOrder,
+  setItemOrder,
 }: PlannerPageProps) => {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
@@ -67,6 +75,44 @@ const PlannerPage = ({
       return {}
     }
   })
+
+  const orderedSections = useMemo(() => {
+    const map = new Map(data.sections.map((section) => [section.id, section]))
+    const order = sectionOrder.length ? sectionOrder : data.sections.map((section) => section.id)
+    const sorted: Section[] = []
+    for (const id of order) {
+      const entry = map.get(id)
+      if (entry) {
+        const itemIds = itemOrder[entry.id] ?? []
+        const itemsMap = new Map(entry.items.map((item) => [item.id, item]))
+        const sortedItems: Item[] = []
+        for (const itemId of itemIds) {
+          const item = itemsMap.get(itemId)
+          if (item) sortedItems.push(item)
+        }
+        for (const item of entry.items) {
+          if (!itemIds.includes(item.id)) sortedItems.push(item)
+        }
+        sorted.push({ ...entry, items: sortedItems })
+      }
+    }
+    for (const section of data.sections) {
+      if (!order.includes(section.id)) {
+        const itemIds = itemOrder[section.id] ?? []
+        const itemsMap = new Map(section.items.map((item) => [item.id, item]))
+        const sortedItems: Item[] = []
+        for (const itemId of itemIds) {
+          const item = itemsMap.get(itemId)
+          if (item) sortedItems.push(item)
+        }
+        for (const item of section.items) {
+          if (!itemIds.includes(item.id)) sortedItems.push(item)
+        }
+        sorted.push({ ...section, items: sortedItems })
+      }
+    }
+    return sorted
+  }, [data.sections, sectionOrder, itemOrder])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -152,7 +198,7 @@ const PlannerPage = ({
           ...section,
           items: section.items.map((item) =>
             item.id === itemId
-              ? { ...item, notes: [newNote, ...item.notes] }
+              ? { ...item, notes: [newNote, ...(item.notes ?? [])] }
               : item,
           ),
         }
@@ -217,12 +263,13 @@ const PlannerPage = ({
 
     if (activeType === 'section') {
       if (active.id === over.id) return
-      setData((prev) => {
-        const oldIndex = prev.sections.findIndex((section) => section.id === active.id)
-        const newIndex = prev.sections.findIndex((section) => section.id === over.id)
-        if (oldIndex === -1 || newIndex === -1) return prev
-        return { sections: arrayMove(prev.sections, oldIndex, newIndex) }
-      })
+      const order = sectionOrder.length
+        ? sectionOrder
+        : data.sections.map((section) => section.id)
+      const oldIndex = order.indexOf(String(active.id))
+      const newIndex = order.indexOf(String(over.id))
+      if (oldIndex === -1 || newIndex === -1) return
+      setSectionOrder(arrayMove(order, oldIndex, newIndex))
       return
     }
 
@@ -233,7 +280,7 @@ const PlannerPage = ({
       let targetIndex = -1
 
       if (overType === 'item') {
-        const found = data.sections.find((section) =>
+        const found = orderedSections.find((section) =>
           section.items.some((item) => item.id === over.id),
         )
         targetSectionId = found?.id ?? sourceSectionId
@@ -241,6 +288,21 @@ const PlannerPage = ({
       } else if (overType === 'section-drop') {
         targetSectionId = over.data.current?.sectionId as string
         targetIndex = -1
+      }
+
+      const currentSection = orderedSections.find((section) => section.id === sourceSectionId)
+      const currentItems = currentSection?.items ?? []
+      const sourceIndex = currentItems.findIndex((item) => item.id === active.id)
+      if (sourceIndex === -1) return
+
+      if (sourceSectionId === targetSectionId) {
+        if (targetIndex < 0) return
+        const order = currentItems.map((item) => item.id)
+        setItemOrder((prev) => ({
+          ...prev,
+          [sourceSectionId]: arrayMove(order, sourceIndex, targetIndex),
+        }))
+        return
       }
 
       setData((prev) => {
@@ -255,15 +317,26 @@ const PlannerPage = ({
         const sourceIndex = sourceSection.items.findIndex((item) => item.id === active.id)
         if (sourceIndex === -1) return prev
 
-        if (sourceSectionId === targetSectionId && targetIndex >= 0) {
-          sourceSection.items = arrayMove(sourceSection.items, sourceIndex, targetIndex)
-          return { sections }
-        }
-
         const [moved] = sourceSection.items.splice(sourceIndex, 1)
         const insertIndex = targetIndex >= 0 ? targetIndex : targetSection.items.length
         targetSection.items.splice(insertIndex, 0, moved)
         return { sections }
+      })
+
+      setItemOrder((prev) => {
+        const next = { ...prev }
+        const sourceOrder = (prev[sourceSectionId] ?? currentItems.map((item) => item.id)).filter(
+          (id) => id !== active.id,
+        )
+        const targetSection = orderedSections.find((section) => section.id === targetSectionId)
+        const targetBase = targetSection?.items.map((item) => item.id) ?? []
+        const targetOrder = prev[targetSectionId] ?? targetBase
+        const insertIndex = targetIndex >= 0 ? targetIndex : targetOrder.length
+        const nextTarget = [...targetOrder]
+        nextTarget.splice(insertIndex, 0, String(active.id))
+        next[sourceSectionId] = sourceOrder
+        next[targetSectionId] = nextTarget
+        return next
       })
     }
   }
@@ -374,13 +447,13 @@ const PlannerPage = ({
             }}
           >
             <SortableContext
-              items={data.sections
+              items={orderedSections
                 .filter((section) => !hiddenSections[section.id])
                 .map((section) => section.id)}
               strategy={verticalListSortingStrategy}
             >
               <Stack spacing={2.5}>
-                {data.sections
+                {orderedSections
                   .filter((section) => !hiddenSections[section.id])
                   .map((section) => (
                     <SectionAccordion
