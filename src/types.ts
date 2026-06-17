@@ -1,10 +1,13 @@
-export type NoteType = 'text' | 'link' | 'image'
+export type NoteType = 'text' | 'link' | 'image' | 'file'
 
 export interface Note {
   id: string
   type: NoteType
   content: string
   createdAt: string
+  fileName?: string
+  mimeType?: string
+  size?: number
 }
 
 export type ItemStatus = 'Do zrobienia' | 'W trakcie' | 'Zrobione'

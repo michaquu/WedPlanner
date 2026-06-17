@@ -28,7 +28,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { v4 as uuid } from 'uuid'
-import type { Item, PlannerData, NoteType, Section } from '../types'
+import type { Item, PlannerData, Note, Section } from '../types'
 import SectionAccordion from './SectionAccordion'
 import ItemDetailsView from './ItemDetailsView'
 
@@ -127,15 +127,15 @@ const PlannerPage = ({
 
   useEffect(() => {
     if (!navigateSectionId) return
-    setSelectedItemId(null)
-    if (hiddenSections[navigateSectionId]) {
-      setHiddenSections((prev) => ({ ...prev, [navigateSectionId]: false }))
-    }
-    setExpandedSections((prev) => ({
-      ...prev,
-      [navigateSectionId]: true,
-    }))
     setTimeout(() => {
+      if (hiddenSections[navigateSectionId]) {
+        setHiddenSections((prev) => ({ ...prev, [navigateSectionId]: false }))
+      }
+      setExpandedSections((prev) => ({
+        ...prev,
+        [navigateSectionId]: true,
+      }))
+      setSelectedItemId(null)
       const target = document.getElementById(`section-${navigateSectionId}`)
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -152,16 +152,16 @@ const PlannerPage = ({
     }
   }, [expandedSections])
 
-  const selectedItem = useMemo(() => {
-    if (!selectedItemId) return null
+  let selectedItem: { item: Item; sectionId: string } | null = null
+  if (selectedItemId) {
     for (const section of data.sections) {
       const item = section.items.find((entry) => entry.id === selectedItemId)
       if (item) {
-        return { item, sectionId: section.id }
+        selectedItem = { item, sectionId: section.id }
+        break
       }
     }
-    return null
-  }, [data.sections, selectedItemId])
+  }
 
   const updateItem = (sectionId: string, itemId: string, changes: Partial<Item>) => {
     setData((prev) => ({
@@ -184,12 +184,9 @@ const PlannerPage = ({
     updateItem(sectionId, itemId, { checked: !item.checked })
   }
 
-  const handleAddNote = (sectionId: string, itemId: string, note: { type: NoteType; content: string }) => {
+  const handleAddNote = (sectionId: string, itemId: string, note: Note) => {
     const newNote = {
-      id: uuid(),
-      type: note.type,
-      content: note.content,
-      createdAt: new Date().toISOString(),
+      ...note,
     }
     setData((prev) => ({
       sections: prev.sections.map((section) => {

@@ -17,14 +17,15 @@ import {
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import type { ChangeEvent } from 'react'
 import { useMemo, useState } from 'react'
-import type { Item, ItemStatus, NoteType } from '../types'
+import { v4 as uuid } from 'uuid'
+import type { Item, ItemStatus, Note, NoteType } from '../types'
 import NotesList from './NotesList'
 
 interface ItemDetailsViewProps {
   item: Item
   onBack: () => void
   onUpdate: (changes: Partial<Item>) => void
-  onAddNote: (note: { type: NoteType; content: string }) => void
+  onAddNote: (note: Note) => void
   onRemoveNote: (noteId: string) => void
 }
 
@@ -34,7 +35,15 @@ const statusOptions: ItemStatus[] = [
   'Zrobione',
 ]
 
-const noteTypes: NoteType[] = ['text', 'link', 'image']
+const noteTypes: NoteType[] = ['text', 'link', 'image', 'file']
+
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result?.toString() ?? '')
+    reader.onerror = () => reject(new Error('Nie udalo sie odczytac pliku.'))
+    reader.readAsDataURL(file)
+  })
 
 const ItemDetailsView = ({
   item,
@@ -45,30 +54,53 @@ const ItemDetailsView = ({
 }: ItemDetailsViewProps) => {
   const [noteType, setNoteType] = useState<NoteType>('text')
   const [noteText, setNoteText] = useState('')
-  const [noteImage, setNoteImage] = useState('')
+  const [noteAttachment, setNoteAttachment] = useState<{
+    content: string
+    fileName: string
+    mimeType: string
+    size: number
+  } | null>(null)
 
   const canAdd = useMemo(() => {
-    if (noteType === 'image') return Boolean(noteImage)
+    if (noteType === 'image' || noteType === 'file') return Boolean(noteAttachment)
     return noteText.trim().length > 0
-  }, [noteImage, noteText, noteType])
+  }, [noteAttachment, noteText, noteType])
 
   const handleAddNote = () => {
     if (!canAdd) return
-    const content = noteType === 'image' ? noteImage : noteText.trim()
-    onAddNote({ type: noteType, content })
+    if (noteType === 'image' || noteType === 'file') {
+      if (!noteAttachment) return
+      onAddNote({
+        id: uuid(),
+        type: noteType,
+        content: noteAttachment.content,
+        createdAt: new Date().toISOString(),
+        fileName: noteAttachment.fileName,
+        mimeType: noteAttachment.mimeType,
+        size: noteAttachment.size,
+      })
+    } else {
+      onAddNote({
+        id: uuid(),
+        type: noteType,
+        content: noteText.trim(),
+        createdAt: new Date().toISOString(),
+      })
+    }
     setNoteText('')
-    setNoteImage('')
+    setNoteAttachment(null)
   }
 
-  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result?.toString() ?? ''
-      setNoteImage(result)
-    }
-    reader.readAsDataURL(file)
+    const content = await readFileAsDataUrl(file)
+    setNoteAttachment({
+      content,
+      fileName: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      size: file.size,
+    })
   }
 
   return (
@@ -175,7 +207,7 @@ const ItemDetailsView = ({
               onChange={(event) => {
                 setNoteType(event.target.value as NoteType)
                 setNoteText('')
-                setNoteImage('')
+                setNoteAttachment(null)
               }}
             >
               {noteTypes.map((type) => (
@@ -186,14 +218,14 @@ const ItemDetailsView = ({
             </Select>
           </FormControl>
 
-          {noteType === 'image' ? (
+          {noteType === 'image' || noteType === 'file' ? (
             <Button variant="outlined" component="label">
-              Wybierz zdjecie
+              {noteType === 'image' ? 'Wybierz zdjecie' : 'Wybierz plik'}
               <input
                 hidden
                 type="file"
-                accept="image/*"
-                onChange={handleImageChange}
+                accept={noteType === 'image' ? 'image/*' : '*/*'}
+                onChange={handleFileChange}
               />
             </Button>
           ) : (
@@ -205,6 +237,12 @@ const ItemDetailsView = ({
               multiline={noteType === 'text'}
               rows={noteType === 'text' ? 3 : 1}
             />
+          )}
+
+          {noteAttachment && (noteType === 'image' || noteType === 'file') && (
+            <Typography variant="caption" color="text.secondary">
+              Wybrano: {noteAttachment.fileName}
+            </Typography>
           )}
 
           <Button variant="contained" onClick={handleAddNote} disabled={!canAdd}>
