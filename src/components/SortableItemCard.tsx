@@ -4,7 +4,8 @@ import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Item } from '../types'
-import StyledCheckbox from './StyledCheckbox'
+import StyledCheckbox from '../utils/components/StyledCheckbox'
+
 
 interface SortableItemCardProps {
   item: Item

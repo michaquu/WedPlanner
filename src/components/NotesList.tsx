@@ -102,6 +102,9 @@ const NotesList = ({ notes = [], onRemove }: NotesListProps) => {
                 color: 'primary.main',
                 textDecoration: 'none',
                 fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
               {note.content}

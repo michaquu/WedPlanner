@@ -32,6 +32,7 @@ import './App.css'
 import type { PlannerData } from './types'
 import { createSeedData } from './data/seed'
 import { v4 as uuid } from 'uuid'
+import packageJson from '../package.json'
 import {
   createProject,
   saveProjectData,
@@ -553,6 +554,13 @@ function App() {
                 Utworz nowe
               </Button>
             </Stack>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ textAlign: 'left', paddingTop: 2, size: '0.75rem' }}
+            >
+              Wersja: {packageJson.version}
+            </Typography>
           </Stack>
         </Box>
       </Drawer>
