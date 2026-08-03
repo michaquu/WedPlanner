@@ -5,6 +5,7 @@ const createItems = (sectionId: string, titles: string[]): Item[] => {
     id: `item-${sectionId}-${index + 1}`,
     title,
     checked: false,
+    favorite: false,
     status: 'Do zrobienia',
     dueDate: '',
     cost: undefined,

@@ -23,11 +23,14 @@ import {
   Alert,
 } from '@mui/material'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ShareRoundedIcon from '@mui/icons-material/ShareRounded'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
 import PlannerPage from './components/PlannerPage'
+import DashboardPage from './components/DashboardPage'
 import './App.css'
 import type { PlannerData } from './types'
 import { createSeedData } from './data/seed'
@@ -43,6 +46,7 @@ const PROJECT_ID_KEY = 'wedding-planner-project-id'
 const HIDDEN_SECTIONS_KEY = 'wedding-planner-hidden-sections-v1'
 const SECTION_ORDER_KEY = 'wedding-planner-section-order-v1'
 const ITEM_ORDER_KEY = 'wedding-planner-item-order-v1'
+const SEARCH_VISIBLE_KEY = 'wedding-planner-search-visible-v1'
 const DEFAULT_PROJECT_ID = '39511bce-7fa5-4a62-8a5d-3d81e9b0be05'
 
 const normalizePlannerData = (input?: PlannerData): PlannerData => {
@@ -53,6 +57,7 @@ const normalizePlannerData = (input?: PlannerData): PlannerData => {
       ...section,
       items: (section.items ?? []).map((item) => ({
         ...item,
+        favorite: item.favorite ?? false,
         notes: item.notes ?? [],
       })),
     })),
@@ -75,6 +80,17 @@ const orderByIds = <T extends { id: string }>(items: T[], order: string[]) => {
 
 function App() {
   const [data, setData] = useState<PlannerData>(() => createSeedData())
+  const [activeView, setActiveView] = useState<'planner' | 'dashboard'>('planner')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [favoriteOnly, setFavoriteOnly] = useState(false)
+  const [searchVisible, setSearchVisible] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem(SEARCH_VISIBLE_KEY)
+      return stored === null ? true : stored === 'true'
+    } catch {
+      return false
+    }
+  })
   const [addSectionOpen, setAddSectionOpen] = useState(false)
   const [newSectionTitle, setNewSectionTitle] = useState('')
   const [infoAnchor, setInfoAnchor] = useState<null | HTMLElement>(null)
@@ -89,7 +105,7 @@ function App() {
   })
   const [projectIdInput, setProjectIdInput] = useState('')
   const [projectExists, setProjectExists] = useState<boolean | null>(null)
-  const [isLoadingProject, setIsLoadingProject] = useState(false)
+  const [isLoadingProject, setIsLoadingProject] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
   const skipNextSaveRef = useRef(false)
@@ -182,6 +198,9 @@ function App() {
     if (hiddenSections[sectionId]) {
       setHiddenSections((prev) => ({ ...prev, [sectionId]: false }))
     }
+    setActiveView('planner')
+    setSearchQuery('')
+    setFavoriteOnly(false)
     setNavigateSectionId(sectionId)
     setDrawerOpen(false)
   }
@@ -191,6 +210,7 @@ function App() {
     if (!value) return
     setProjectId(value)
     setProjectExists(null)
+    setIsLoadingProject(true)
     setProjectIdInput('')
     try {
       window.localStorage.setItem(PROJECT_ID_KEY, value)
@@ -213,6 +233,32 @@ function App() {
     }
   }
 
+  const handleOpenDashboard = () => {
+    setActiveView('dashboard')
+    setInfoAnchor(null)
+    setDrawerOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleToggleSearch = () => {
+    setActiveView('planner')
+    setSearchVisible((visible) => {
+      if (visible) {
+        setSearchQuery('')
+        setFavoriteOnly(false)
+      }
+      return !visible
+    })
+  }
+
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SEARCH_VISIBLE_KEY, String(searchVisible))
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [searchVisible])
 
   useEffect(() => {
     if (!projectId) return
@@ -227,7 +273,6 @@ function App() {
 
   useEffect(() => {
     if (!projectId) return
-    setIsLoadingProject(true)
     const unsubscribe = subscribeProject(projectId, (payload) => {
       skipNextSaveRef.current = true
       if (payload.exists && payload.data) {
@@ -342,6 +387,14 @@ function App() {
             <Stack direction="row" spacing={1}>
               <IconButton
                 color="primary"
+                aria-label={searchVisible ? 'Ukryj wyszukiwarke' : 'Pokaz wyszukiwarke'}
+                className="hero-add"
+                onClick={handleToggleSearch}
+              >
+                <SearchRoundedIcon />
+              </IconButton>
+              <IconButton
+                color="primary"
                 aria-label="Podsumowanie"
                 className="hero-add"
                 onClick={(event) => setInfoAnchor(event.currentTarget)}
@@ -386,6 +439,8 @@ function App() {
                 </Button>
               </Stack>
             </Box>
+          ) : activeView === 'dashboard' ? (
+            <DashboardPage data={data} onBack={() => setActiveView('planner')} />
           ) : (
             <PlannerPage
               data={data}
@@ -398,6 +453,11 @@ function App() {
               setSectionOrder={setSectionOrder}
               itemOrder={effectiveItemOrder}
               setItemOrder={setItemOrder}
+              searchVisible={searchVisible}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              favoriteOnly={favoriteOnly}
+              onFavoriteOnlyChange={setFavoriteOnly}
             />
           )}
         </Container>
@@ -443,6 +503,14 @@ function App() {
           <Typography variant="body2">
             Sekcje: {data.sections.length}
           </Typography>
+          <Button
+            size="small"
+            endIcon={<DashboardRoundedIcon />}
+            onClick={handleOpenDashboard}
+            sx={{ alignSelf: 'flex-start', padding: 0 }}
+          >
+            Wiecej szczegolow
+          </Button>
         </Stack>
       </Popover>
 
@@ -489,6 +557,15 @@ function App() {
                   />
                 </ListItemButton>
               ))}
+          </List>
+          <Divider sx={{ marginY: 2 }} />
+          <List dense disablePadding>
+            <ListItemButton onClick={handleOpenDashboard}>
+              <ListItemIcon>
+                <DashboardRoundedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Dashboard" secondary="Koszty, postep i raport" />
+            </ListItemButton>
           </List>
           <Divider sx={{ marginY: 2 }} />
           <Typography variant="subtitle2" color="text.secondary" sx={{ marginBottom: 1 }}>

@@ -7,10 +7,17 @@ import {
   DialogContent,
   DialogTitle,
   Button,
+  IconButton,
+  InputAdornment,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import {
   DndContext,
   DragOverlay,
@@ -43,6 +50,11 @@ interface PlannerPageProps {
   setSectionOrder: Dispatch<SetStateAction<string[]>>
   itemOrder: Record<string, string[]>
   setItemOrder: Dispatch<SetStateAction<Record<string, string[]>>>
+  searchVisible: boolean
+  searchQuery: string
+  onSearchQueryChange: (value: string) => void
+  favoriteOnly: boolean
+  onFavoriteOnlyChange: (value: boolean) => void
 }
 
 const COLLAPSE_KEY = 'wedding-planner-collapse-v1'
@@ -58,6 +70,11 @@ const PlannerPage = ({
   setSectionOrder,
   itemOrder,
   setItemOrder,
+  searchVisible,
+  searchQuery,
+  onSearchQueryChange,
+  favoriteOnly,
+  onFavoriteOnlyChange,
 }: PlannerPageProps) => {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
@@ -113,6 +130,53 @@ const PlannerPage = ({
     }
     return sorted
   }, [data.sections, sectionOrder, itemOrder])
+
+  const normalizedQuery = searchQuery
+    .trim()
+    .toLocaleLowerCase('pl-PL')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  const displayedSections = useMemo(() => {
+    if (!normalizedQuery && !favoriteOnly) {
+      return orderedSections.filter((section) => !hiddenSections[section.id])
+    }
+
+    const includesQuery = (value: unknown) =>
+      String(value ?? '')
+        .toLocaleLowerCase('pl-PL')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .includes(normalizedQuery)
+
+    return orderedSections.flatMap((section) => {
+      const sectionMatches = includesQuery(section.title)
+      const items = section.items.filter((item) => {
+        if (favoriteOnly && !item.favorite) return false
+        if (!normalizedQuery) return true
+        if (sectionMatches) return true
+        return [
+          item.title,
+          item.status,
+          item.dueDate,
+          item.cost,
+          item.checked ? 'ukonczone zrobione' : 'nieukonczone do zrobienia',
+          ...item.notes.flatMap((note) => [
+            note.type,
+            note.type === 'text' || note.type === 'link' ? note.content : undefined,
+            note.fileName,
+            note.mimeType,
+          ]),
+        ].some(includesQuery)
+      })
+      return items.length ? [{ ...section, items }] : []
+    })
+  }, [favoriteOnly, hiddenSections, normalizedQuery, orderedSections])
+
+  const matchedItemsCount = displayedSections.reduce(
+    (total, section) => total + section.items.length,
+    0,
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -184,6 +248,13 @@ const PlannerPage = ({
     updateItem(sectionId, itemId, { checked: !item.checked })
   }
 
+  const handleToggleFavorite = (sectionId: string, itemId: string) => {
+    const section = data.sections.find((entry) => entry.id === sectionId)
+    const item = section?.items.find((entry) => entry.id === itemId)
+    if (!item) return
+    updateItem(sectionId, itemId, { favorite: !item.favorite })
+  }
+
   const handleAddNote = (sectionId: string, itemId: string, note: Note) => {
     const newNote = {
       ...note,
@@ -233,6 +304,7 @@ const PlannerPage = ({
               id: uuid(),
               title: value,
               checked: false,
+              favorite: false,
               status: 'Do zrobienia',
               dueDate: '',
               cost: undefined,
@@ -434,6 +506,54 @@ const PlannerPage = ({
             </Stack>
           </Box>
 
+          {searchVisible && (
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+              <TextField
+                autoFocus
+                fullWidth
+                size="small"
+                value={searchQuery}
+                onChange={(event) => onSearchQueryChange(event.target.value)}
+                placeholder="Szukaj w zadaniach, notatkach, kosztach i terminach..."
+                aria-label="Szukaj w planerze"
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchRoundedIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchQuery ? (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={() => onSearchQueryChange('')}
+                          aria-label="Wyczysc wyszukiwanie"
+                        >
+                          <CloseRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ) : undefined,
+                  },
+                }}
+                helperText={
+                  normalizedQuery || favoriteOnly
+                    ? `Znaleziono ${matchedItemsCount} zadan w ${displayedSections.length} sekcjach`
+                    : undefined
+                }
+              />
+              <IconButton
+                color={favoriteOnly ? 'error' : 'default'}
+                className="favorite-filter"
+                onClick={() => onFavoriteOnlyChange(!favoriteOnly)}
+                aria-label={favoriteOnly ? 'Pokaz wszystkie zadania' : 'Pokaz tylko polubione'}
+                aria-pressed={favoriteOnly}
+              >
+                {favoriteOnly ? <FavoriteRoundedIcon /> : <FavoriteBorderRoundedIcon />}
+              </IconButton>
+            </Stack>
+          )}
+
           <DndContext
             sensors={sensors}
             onDragStart={handleDragStart}
@@ -444,19 +564,18 @@ const PlannerPage = ({
             }}
           >
             <SortableContext
-              items={orderedSections
-                .filter((section) => !hiddenSections[section.id])
-                .map((section) => section.id)}
+              items={displayedSections.map((section) => section.id)}
               strategy={verticalListSortingStrategy}
             >
               <Stack spacing={2.5}>
-                {orderedSections
-                  .filter((section) => !hiddenSections[section.id])
-                  .map((section) => (
+                {displayedSections.map((section) => (
                     <SectionAccordion
                       key={section.id}
                       section={section}
                       onToggleItem={(itemId) => handleToggleItem(section.id, itemId)}
+                      onToggleFavorite={(itemId) =>
+                        handleToggleFavorite(section.id, itemId)
+                      }
                       onOpenItem={(itemId) => setSelectedItemId(itemId)}
                       onAddItem={(title) => handleAddItem(section.id, title)}
                       onDeleteItem={(itemId: string) => handleDeleteItem(section.id, itemId)}
@@ -471,6 +590,14 @@ const PlannerPage = ({
                       }
                     />
                   ))}
+                {(normalizedQuery || favoriteOnly) && displayedSections.length === 0 && (
+                  <Paper className="empty-search" elevation={0}>
+                    <SearchRoundedIcon color="disabled" />
+                    <Typography variant="body2" color="text.secondary">
+                      Brak zadan pasujacych do wyszukiwania.
+                    </Typography>
+                  </Paper>
+                )}
               </Stack>
             </SortableContext>
             <DragOverlay

@@ -61,6 +61,60 @@
   background: rgba(255, 255, 255, 0.95);
 }
 
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.dashboard-card,
+.dashboard-panel,
+.empty-search {
+  border: 1px solid rgba(47, 39, 36, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 12px 35px rgba(47, 39, 36, 0.06);
+}
+
+.favorite-filter {
+  flex: 0 0 auto;
+  border: 1px solid rgba(47, 39, 36, 0.15) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+.dashboard-card {
+  border-radius: 18px;
+  padding: 16px;
+  min-width: 0;
+}
+
+.dashboard-stat-value {
+  font-size: clamp(1.35rem, 5vw, 1.75rem);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-panel {
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.empty-search {
+  min-height: 120px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+}
+
 @media (max-width: 768px) {
   .app-hero {
     padding: 10px 0 6px;
@@ -76,5 +130,23 @@
 
   .details-view {
     padding: 18px;
+  }
+
+  .dashboard-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-panel {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-card {
+    padding: 14px;
   }
 }

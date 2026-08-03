@@ -32,6 +32,7 @@ import { VisibilityOffOutlined } from '@mui/icons-material'
 interface SectionAccordionProps {
   section: Section
   onToggleItem: (itemId: string) => void
+  onToggleFavorite: (itemId: string) => void
   onOpenItem: (itemId: string) => void
   onAddItem: (title: string) => void
   onDeleteItem: (itemId: string) => void
@@ -44,6 +45,7 @@ interface SectionAccordionProps {
 const SectionAccordion = ({
   section,
   onToggleItem,
+  onToggleFavorite,
   onOpenItem,
   onAddItem,
   onDeleteItem,
@@ -137,6 +139,7 @@ const SectionAccordion = ({
                     item={item}
                     sectionId={section.id}
                     onToggle={onToggleItem}
+                    onToggleFavorite={onToggleFavorite}
                     onOpen={onOpenItem}
                     onDelete={onDeleteItem}
                   />

@@ -1,6 +1,8 @@
 import { Box, Chip, IconButton, Paper, Stack, Typography } from '@mui/material'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
+import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Item } from '../types'
@@ -11,6 +13,7 @@ interface SortableItemCardProps {
   item: Item
   sectionId: string
   onToggle: (itemId: string) => void
+  onToggleFavorite: (itemId: string) => void
   onOpen: (itemId: string) => void
   onDelete: (itemId: string) => void
 }
@@ -41,6 +44,7 @@ const SortableItemCard = ({
   item,
   sectionId,
   onToggle,
+  onToggleFavorite,
   onOpen,
   onDelete,
 }: SortableItemCardProps) => {
@@ -98,6 +102,22 @@ const SortableItemCard = ({
           </Stack>
         </Box>
         <Stack direction="row" spacing={0}>
+          <IconButton
+            size="small"
+            color={item.favorite ? 'error' : 'default'}
+            aria-label={item.favorite ? 'Usun z polubionych' : 'Dodaj do polubionych'}
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleFavorite(item.id)
+            }}
+            sx={{ padding: 0.25 }}
+          >
+            {item.favorite ? (
+              <FavoriteRoundedIcon fontSize="small" />
+            ) : (
+              <FavoriteBorderRoundedIcon fontSize="small" />
+            )}
+          </IconButton>
           <IconButton
             size="small"
             onClick={(event) => {
