@@ -16,7 +16,7 @@ export interface Item {
   id: string
   title: string
   checked: boolean
-  favorite?: boolean
+  favorite: boolean
   status: ItemStatus
   dueDate?: string
   cost?: number

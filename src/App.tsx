@@ -1,450 +1,131 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Box,
-  CircularProgress,
-  Drawer,
-  Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  List,
-  ListItemIcon,
-  ListItemButton,
-  ListItemText,
-  Stack,
-  TextField,
-  Typography,
-  Button,
-  Popover,
-  Divider,
-  Snackbar,
-  Alert,
-} from '@mui/material'
-import AddRoundedIcon from '@mui/icons-material/AddRounded'
-import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
-import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
-import ShareRoundedIcon from '@mui/icons-material/ShareRounded'
-import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
-import PlannerPage from './components/PlannerPage'
-import DashboardPage from './components/DashboardPage'
-import './App.css'
-import type { PlannerData } from './types'
-import { createSeedData } from './data/seed'
+import { useMemo, useState } from 'react'
+import { Alert, Container, Snackbar } from '@mui/material'
 import { v4 as uuid } from 'uuid'
 import packageJson from '../package.json'
+import './App.css'
+import { STORAGE_KEYS } from './constants'
+import AddSectionDialog from './components/app/AddSectionDialog'
+import AppHeader from './components/app/AppHeader'
+import MissingProject from './components/app/MissingProject'
+import NavigationDrawer from './components/app/NavigationDrawer'
+import ProjectLoading from './components/app/ProjectLoading'
+import SummaryPopover from './components/app/SummaryPopover'
+import DashboardPage from './components/DashboardPage'
+import PlannerPage from './components/PlannerPage'
+import { useProjectData } from './hooks/useProjectData'
+import { useStoredState } from './hooks/useStoredState'
 import {
-  createProject,
-  saveProjectData,
-  subscribeProject,
-} from './utils/firebaseProjects'
+  getEffectiveItemOrder,
+  getEffectiveSectionOrder,
+  getPlannerSummary,
+  orderByIds,
+} from './utils/plannerData'
 
-const PROJECT_ID_KEY = 'wedding-planner-project-id'
-const HIDDEN_SECTIONS_KEY = 'wedding-planner-hidden-sections-v1'
-const SECTION_ORDER_KEY = 'wedding-planner-section-order-v1'
-const ITEM_ORDER_KEY = 'wedding-planner-item-order-v1'
-const SEARCH_VISIBLE_KEY = 'wedding-planner-search-visible-v1'
-const DEFAULT_PROJECT_ID = '39511bce-7fa5-4a62-8a5d-3d81e9b0be05'
-
-const normalizePlannerData = (input?: PlannerData): PlannerData => {
-  const fallback = createSeedData()
-  const source = input ?? fallback
-  return {
-    sections: (source.sections ?? []).map((section) => ({
-      ...section,
-      items: (section.items ?? []).map((item) => ({
-        ...item,
-        favorite: item.favorite ?? false,
-        notes: item.notes ?? [],
-      })),
-    })),
-  }
-}
-
-const orderByIds = <T extends { id: string }>(items: T[], order: string[]) => {
-  if (!order.length) return items
-  const map = new Map(items.map((entry) => [entry.id, entry]))
-  const ordered: T[] = []
-  for (const id of order) {
-    const entry = map.get(id)
-    if (entry) ordered.push(entry)
-  }
-  for (const entry of items) {
-    if (!order.includes(entry.id)) ordered.push(entry)
-  }
-  return ordered
-}
+type AppView = 'planner' | 'dashboard'
 
 function App() {
-  const [data, setData] = useState<PlannerData>(() => createSeedData())
-  const [activeView, setActiveView] = useState<'planner' | 'dashboard'>('planner')
+  const project = useProjectData()
+  const [activeView, setActiveView] = useState<AppView>('planner')
   const [searchQuery, setSearchQuery] = useState('')
   const [favoriteOnly, setFavoriteOnly] = useState(false)
-  const [searchVisible, setSearchVisible] = useState(() => {
-    try {
-      const stored = window.localStorage.getItem(SEARCH_VISIBLE_KEY)
-      return stored === null ? true : stored === 'true'
-    } catch {
-      return false
-    }
-  })
+  const [searchVisible, setSearchVisible] = useStoredState(STORAGE_KEYS.searchVisible, true)
+  const [hiddenSections, setHiddenSections] = useStoredState<Record<string, boolean>>(
+    STORAGE_KEYS.hiddenSections,
+    {},
+  )
+  const [sectionOrder, setSectionOrder] = useStoredState<string[]>(
+    STORAGE_KEYS.sectionOrder,
+    [],
+  )
+  const [itemOrder, setItemOrder] = useStoredState<Record<string, string[]>>(
+    STORAGE_KEYS.itemOrder,
+    {},
+  )
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [summaryAnchor, setSummaryAnchor] = useState<HTMLElement | null>(null)
   const [addSectionOpen, setAddSectionOpen] = useState(false)
   const [newSectionTitle, setNewSectionTitle] = useState('')
-  const [infoAnchor, setInfoAnchor] = useState<null | HTMLElement>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [navigateSectionId, setNavigateSectionId] = useState<string | null>(null)
-  const [projectId, setProjectId] = useState(() => {
-    try {
-      return window.localStorage.getItem(PROJECT_ID_KEY) ?? DEFAULT_PROJECT_ID
-    } catch {
-      return DEFAULT_PROJECT_ID
-    }
-  })
   const [projectIdInput, setProjectIdInput] = useState('')
-  const [projectExists, setProjectExists] = useState<boolean | null>(null)
-  const [isLoadingProject, setIsLoadingProject] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveError, setSaveError] = useState(false)
-  const skipNextSaveRef = useRef(false)
-  const initialSyncRef = useRef(false)
-  const [hiddenSections, setHiddenSections] = useState<Record<string, boolean>>(() => {
-    try {
-      const raw = window.localStorage.getItem(HIDDEN_SECTIONS_KEY)
-      return raw ? (JSON.parse(raw) as Record<string, boolean>) : {}
-    } catch {
-      return {}
-    }
-  })
-  const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
-    try {
-      const raw = window.localStorage.getItem(SECTION_ORDER_KEY)
-      return raw ? (JSON.parse(raw) as string[]) : []
-    } catch {
-      return []
-    }
-  })
-  const [itemOrder, setItemOrder] = useState<Record<string, string[]>>(() => {
-    try {
-      const raw = window.localStorage.getItem(ITEM_ORDER_KEY)
-      return raw ? (JSON.parse(raw) as Record<string, string[]>) : {}
-    } catch {
-      return {}
-    }
-  })
+  const [navigateSectionId, setNavigateSectionId] = useState<string | null>(null)
 
-  const effectiveSectionOrder = useMemo(() => {
-    const ids = data.sections.map((section) => section.id)
-    const next = sectionOrder.filter((id) => ids.includes(id))
-    const missing = ids.filter((id) => !next.includes(id))
-    return [...next, ...missing]
-  }, [data.sections, sectionOrder])
-
-  const effectiveItemOrder = useMemo(() => {
-    const next: Record<string, string[]> = {}
-    for (const section of data.sections) {
-      const ids = section.items.map((item) => item.id)
-      const current = itemOrder[section.id] ?? []
-      const kept = current.filter((id) => ids.includes(id))
-      const missing = ids.filter((id) => !kept.includes(id))
-      next[section.id] = [...kept, ...missing]
-    }
-    return next
-  }, [data.sections, itemOrder])
-
-  const orderedSections = useMemo(
-    () => orderByIds(data.sections, effectiveSectionOrder),
-    [data.sections, effectiveSectionOrder],
+  const effectiveSectionOrder = useMemo(
+    () => getEffectiveSectionOrder(project.data.sections, sectionOrder),
+    [project.data.sections, sectionOrder],
   )
+  const effectiveItemOrder = useMemo(
+    () => getEffectiveItemOrder(project.data.sections, itemOrder),
+    [itemOrder, project.data.sections],
+  )
+  const orderedSections = useMemo(
+    () => orderByIds(project.data.sections, effectiveSectionOrder),
+    [effectiveSectionOrder, project.data.sections],
+  )
+  const summary = useMemo(() => getPlannerSummary(project.data), [project.data])
 
-  const summary = useMemo(() => {
-    const totals = data.sections.reduce(
-      (acc, section) => {
-        for (const item of section.items) {
-          acc.totalTasks += 1
-          if (item.checked) acc.doneTasks += 1
-          if (item.cost) acc.totalCost += item.cost
-        }
-        return acc
-      },
-      { totalTasks: 0, doneTasks: 0, totalCost: 0 },
-    )
-    return totals
-  }, [data.sections])
+  const resetFilters = () => {
+    setSearchQuery('')
+    setFavoriteOnly(false)
+  }
 
-  const handleOpenAddSection = () => setAddSectionOpen(true)
-  const handleCloseAddSection = () => setAddSectionOpen(false)
+  const handleToggleSearch = () => {
+    setActiveView('planner')
+    if (searchVisible) resetFilters()
+    setSearchVisible(!searchVisible)
+  }
+
+  const handleNavigateSection = (sectionId: string) => {
+    if (hiddenSections[sectionId]) {
+      setHiddenSections((current) => ({ ...current, [sectionId]: false }))
+    }
+    setActiveView('planner')
+    resetFilters()
+    setNavigateSectionId(sectionId)
+    setDrawerOpen(false)
+  }
+
+  const handleOpenDashboard = () => {
+    setActiveView('dashboard')
+    setSummaryAnchor(null)
+    setDrawerOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const handleAddSection = () => {
     const title = newSectionTitle.trim()
     if (!title) return
-    setData((prev) => ({
-      sections: [
-        ...prev.sections,
-        {
-          id: uuid(),
-          title,
-          items: [],
-        },
-      ],
+    project.setData((current) => ({
+      sections: [...current.sections, { id: uuid(), title, items: [] }],
     }))
     setNewSectionTitle('')
     setAddSectionOpen(false)
   }
 
-  const handleDrawerNavigate = (sectionId: string) => {
-    if (hiddenSections[sectionId]) {
-      setHiddenSections((prev) => ({ ...prev, [sectionId]: false }))
-    }
-    setActiveView('planner')
-    setSearchQuery('')
-    setFavoriteOnly(false)
-    setNavigateSectionId(sectionId)
-    setDrawerOpen(false)
+  const handleSelectProject = () => {
+    if (project.selectProject(projectIdInput)) setProjectIdInput('')
   }
 
-  const handleSaveProjectId = () => {
-    const value = projectIdInput.trim()
-    if (!value) return
-    setProjectId(value)
-    setProjectExists(null)
-    setIsLoadingProject(true)
-    setProjectIdInput('')
-    try {
-      window.localStorage.setItem(PROJECT_ID_KEY, value)
-    } catch {
-      // Ignore storage errors.
-    }
-  }
-
-  const handleCreateNewProject = () => {
-    const nextId = uuid()
-    const seed = createSeedData()
-    setProjectId(nextId)
-    setProjectExists(true)
-    setData(seed)
-    createProject(nextId, seed)
-    try {
-      window.localStorage.setItem(PROJECT_ID_KEY, nextId)
-    } catch {
-      // Ignore storage errors.
-    }
-  }
-
-  const handleOpenDashboard = () => {
-    setActiveView('dashboard')
-    setInfoAnchor(null)
-    setDrawerOpen(false)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const handleToggleSearch = () => {
-    setActiveView('planner')
-    setSearchVisible((visible) => {
-      if (visible) {
-        setSearchQuery('')
-        setFavoriteOnly(false)
-      }
-      return !visible
-    })
-  }
-
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(SEARCH_VISIBLE_KEY, String(searchVisible))
-    } catch {
-      // Ignore storage errors.
-    }
-  }, [searchVisible])
-
-  useEffect(() => {
-    if (!projectId) return
-    if (projectId === DEFAULT_PROJECT_ID) {
-      try {
-        window.localStorage.setItem(PROJECT_ID_KEY, projectId)
-      } catch {
-        // Ignore storage errors.
-      }
-    }
-  }, [projectId])
-
-  useEffect(() => {
-    if (!projectId) return
-    const unsubscribe = subscribeProject(projectId, (payload) => {
-      skipNextSaveRef.current = true
-      if (payload.exists && payload.data) {
-        setProjectExists(true)
-        setData(normalizePlannerData(payload.data))
-        setIsLoadingProject(false)
-      } else {
-        setProjectExists(false)
-        setIsLoadingProject(false)
-      }
-    })
-    return () => unsubscribe()
-  }, [projectId])
-
-  useEffect(() => {
-    if (!projectId || projectExists !== true) return
-    if (initialSyncRef.current) return
-    initialSyncRef.current = true
-    saveProjectData(projectId, normalizePlannerData(data))
-  }, [data, projectExists, projectId])
-
-  const handleInitProject = () => {
-    const nextId = uuid()
-    const seed = createSeedData()
-    setProjectId(nextId)
-    setProjectExists(true)
-    setData(seed)
-    createProject(nextId, seed)
-    try {
-      window.localStorage.setItem(PROJECT_ID_KEY, nextId)
-    } catch {
-      // Ignore storage errors.
-    }
-  }
-
-  useEffect(() => {
-    if (!projectId || projectExists !== true) return
-    if (skipNextSaveRef.current) {
-      skipNextSaveRef.current = false
-      return
-    }
-    setIsSaving(true)
-    setSaveError(false)
-    const saveTimeout = setTimeout(() => {
-      saveProjectData(projectId, data)
-        .then(() => {
-          setIsSaving(false)
-        })
-        .catch(() => {
-          setIsSaving(false)
-          setSaveError(true)
-        })
-    }, 400)
-    return () => clearTimeout(saveTimeout)
-  }, [data, projectExists, projectId])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        HIDDEN_SECTIONS_KEY,
-        JSON.stringify(hiddenSections),
-      )
-    } catch {
-      // Ignore storage errors.
-    }
-  }, [hiddenSections])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        SECTION_ORDER_KEY,
-        JSON.stringify(effectiveSectionOrder),
-      )
-    } catch {
-      // Ignore storage errors.
-    }
-  }, [effectiveSectionOrder])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        ITEM_ORDER_KEY,
-        JSON.stringify(effectiveItemOrder),
-      )
-    } catch {
-      // Ignore storage errors.
-    }
-  }, [effectiveItemOrder])
   return (
     <div className="app-shell">
-      <header className="app-hero">
-        <Container maxWidth="lg">
-          <Stack
-            direction="row"
-            spacing={1}
-            className="hero-stack"
-            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <IconButton
-                color="primary"
-                aria-label="Menu"
-                className="hero-add"
-                onClick={() => setDrawerOpen(true)}
-              >
-                <MenuRoundedIcon />
-              </IconButton>
-              <Typography variant="h5" className="hero-title">
-                Wedding Planner
-              </Typography>
-            </Stack>
-            <Stack direction="row" spacing={1}>
-              <IconButton
-                color="primary"
-                aria-label={searchVisible ? 'Ukryj wyszukiwarke' : 'Pokaz wyszukiwarke'}
-                className="hero-add"
-                onClick={handleToggleSearch}
-              >
-                <SearchRoundedIcon />
-              </IconButton>
-              <IconButton
-                color="primary"
-                aria-label="Podsumowanie"
-                className="hero-add"
-                onClick={(event) => setInfoAnchor(event.currentTarget)}
-              >
-                <InfoOutlinedIcon />
-              </IconButton>
-              <IconButton
-                color="primary"
-                aria-label="Dodaj nowa sekcje"
-                className="hero-add"
-                onClick={handleOpenAddSection}
-              >
-                <AddRoundedIcon />
-              </IconButton>
-            </Stack>
-          </Stack>
-        </Container>
-      </header>
+      <AppHeader
+        searchVisible={searchVisible}
+        onOpenMenu={() => setDrawerOpen(true)}
+        onToggleSearch={handleToggleSearch}
+        onOpenSummary={setSummaryAnchor}
+        onAddSection={() => setAddSectionOpen(true)}
+      />
 
       <main className="app-main">
         <Container maxWidth="sm">
-          {projectExists === false ? (
-            <Box
-              sx={{
-                background: 'rgba(255, 255, 255, 0.8)',
-                borderRadius: 3,
-                border: '1px solid rgba(47, 39, 36, 0.12)',
-                padding: 3,
-                boxShadow: '0 12px 30px rgba(47, 39, 36, 0.08)',
-              }}
-            >
-              <Stack spacing={2}>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Brak projektu
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  W bazie nie ma danych dla ID: {projectId || 'brak'}. Mozesz
-                  utworzyc nowy projekt lub wpisac inne ID w ustawieniach.
-                </Typography>
-                <Button variant="contained" onClick={handleInitProject}>
-                  Utworz projekt
-                </Button>
-              </Stack>
-            </Box>
+          {project.projectExists === null || project.isLoading ? (
+            <ProjectLoading />
+          ) : project.projectExists === false ? (
+            <MissingProject projectId={project.projectId} onCreate={project.createNewProject} />
           ) : activeView === 'dashboard' ? (
-            <DashboardPage data={data} onBack={() => setActiveView('planner')} />
+            <DashboardPage data={project.data} onBack={() => setActiveView('planner')} />
           ) : (
             <PlannerPage
-              data={data}
-              setData={setData}
+              data={project.data}
+              setData={project.setData}
               navigateSectionId={navigateSectionId}
               onNavigateHandled={() => setNavigateSectionId(null)}
               hiddenSections={hiddenSections}
@@ -463,189 +144,41 @@ function App() {
         </Container>
       </main>
 
-      <Dialog open={addSectionOpen} onClose={handleCloseAddSection} fullWidth>
-        <DialogTitle>Nowa sekcja</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Nazwa sekcji"
-            fullWidth
-            value={newSectionTitle}
-            onChange={(event) => setNewSectionTitle(event.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseAddSection}>Anuluj</Button>
-          <Button variant="contained" onClick={handleAddSection}>
-            Dodaj
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Popover
-        open={Boolean(infoAnchor)}
-        anchorEl={infoAnchor}
-        onClose={() => setInfoAnchor(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      >
-        <Stack spacing={1.5} sx={{ padding: 2, minWidth: 220 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            Podsumowanie
-          </Typography>
-          <Divider />
-          <Typography variant="body2">
-            Zadania: {summary.doneTasks}/{summary.totalTasks}
-          </Typography>
-          <Typography variant="body2">
-            Suma kosztow: {summary.totalCost} zl
-          </Typography>
-          <Typography variant="body2">
-            Sekcje: {data.sections.length}
-          </Typography>
-          <Button
-            size="small"
-            endIcon={<DashboardRoundedIcon />}
-            onClick={handleOpenDashboard}
-            sx={{ alignSelf: 'flex-start', padding: 0 }}
-          >
-            Wiecej szczegolow
-          </Button>
-        </Stack>
-      </Popover>
-
-      <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box sx={{ width: 280, padding: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, marginBottom: 1 }}>
-            Sekcje
-          </Typography>
-          <List dense>
-            {orderedSections.map((section) => (
-              <ListItemButton
-                key={section.id}
-                onClick={() => handleDrawerNavigate(section.id)}
-              >
-                <ListItemText
-                  primary={section.title}
-                  secondary={
-                    hiddenSections[section.id]
-                      ? 'Ukryta sekcja'
-                      : `${section.items.length} zadania`
-                  }
-                />
-              </ListItemButton>
-            ))}
-          </List>
-          <Divider sx={{ marginY: 2 }} />
-          <Typography variant="subtitle2" color="text.secondary" sx={{ marginBottom: 1 }}>
-            Ukryte sekcje
-          </Typography>
-          <List dense>
-            {orderedSections
-              .filter((section) => hiddenSections[section.id])
-              .map((section) => (
-                <ListItemButton
-                  key={section.id}
-                  onClick={() => handleDrawerNavigate(section.id)}
-                >
-                  <ListItemIcon>
-                    <VisibilityOffOutlinedIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={section.title}
-                    secondary="Kliknij, aby pokazac"
-                  />
-                </ListItemButton>
-              ))}
-          </List>
-          <Divider sx={{ marginY: 2 }} />
-          <List dense disablePadding>
-            <ListItemButton onClick={handleOpenDashboard}>
-              <ListItemIcon>
-                <DashboardRoundedIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="Dashboard" secondary="Koszty, postep i raport" />
-            </ListItemButton>
-          </List>
-          <Divider sx={{ marginY: 2 }} />
-          <Typography variant="subtitle2" color="text.secondary" sx={{ marginBottom: 1 }}>
-            Ustawienia
-          </Typography>
-          <Stack spacing={1.5}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Aktualne ID projektu
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <TextField
-                  size="small"
-                  value={projectId || 'brak'}
-                  fullWidth
-                  slotProps={{ input: { readOnly: true } }}
-                />
-                <IconButton
-                  size="small"
-                  aria-label="Udostepnij ID"
-                  onClick={() => {
-                    if (!projectId) return
-                    navigator.clipboard?.writeText(projectId)
-                  }}
-                >
-                  <ShareRoundedIcon fontSize="small" />
-                </IconButton>
-              </Stack>
-            </Box>
-            <TextField
-              size="small"
-              label="Wpisz ID projektu"
-              value={projectIdInput}
-              onChange={(event) => setProjectIdInput(event.target.value)}
-              fullWidth
-                helperText={
-                  projectExists === false
-                    ? 'Nie znaleziono projektu. Utworz nowe lub wpisz inne ID.'
-                    : undefined
-                }
-            />
-            {isLoadingProject && (
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <CircularProgress size={16} />
-                <Typography variant="caption" color="text.secondary">
-                  Ladowanie danych...
-                </Typography>
-              </Stack>
-            )}
-            {isSaving && (
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <CircularProgress size={16} />
-                <Typography variant="caption" color="text.secondary">
-                  Zapisywanie...
-                </Typography>
-              </Stack>
-            )}
-            <Stack spacing={1}>
-              <Button variant="contained" onClick={handleSaveProjectId}>
-                Zapisz ID
-              </Button>
-              <Button variant="outlined" onClick={handleCreateNewProject}>
-                Utworz nowe
-              </Button>
-            </Stack>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ textAlign: 'left', paddingTop: 2, size: '0.75rem' }}
-            >
-              Wersja: {packageJson.version}
-            </Typography>
-          </Stack>
-        </Box>
-      </Drawer>
-
+      <AddSectionDialog
+        open={addSectionOpen}
+        title={newSectionTitle}
+        onTitleChange={setNewSectionTitle}
+        onClose={() => setAddSectionOpen(false)}
+        onAdd={handleAddSection}
+      />
+      <SummaryPopover
+        anchor={summaryAnchor}
+        summary={summary}
+        sectionCount={project.data.sections.length}
+        onClose={() => setSummaryAnchor(null)}
+        onOpenDashboard={handleOpenDashboard}
+      />
+      <NavigationDrawer
+        open={drawerOpen}
+        sections={orderedSections}
+        hiddenSections={hiddenSections}
+        projectId={project.projectId}
+        projectIdInput={projectIdInput}
+        projectExists={project.projectExists}
+        isLoading={project.isLoading}
+        isSaving={project.isSaving}
+        version={packageJson.version}
+        onClose={() => setDrawerOpen(false)}
+        onNavigate={handleNavigateSection}
+        onOpenDashboard={handleOpenDashboard}
+        onProjectIdInputChange={setProjectIdInput}
+        onSelectProject={handleSelectProject}
+        onCreateProject={project.createNewProject}
+      />
       <Snackbar
-        open={saveError}
+        open={project.saveError}
         autoHideDuration={3000}
-        onClose={() => setSaveError(false)}
+        onClose={() => project.setSaveError(false)}
       >
         <Alert severity="error" variant="filled">
           Blad zapisu. Sprobuj ponownie.

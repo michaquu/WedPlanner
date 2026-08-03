@@ -1,4 +1,4 @@
-import { onValue, ref, set } from 'firebase/database'
+import { onValue, ref, set, update } from 'firebase/database'
 import type { PlannerData } from '../types'
 import { db } from '../firebase'
 
@@ -47,7 +47,7 @@ export const saveProjectData = (projectId: string, data: PlannerData) => {
     data,
     updatedAt: now,
   })
-  return set(projectRef(projectId), payload)
+  return update(projectRef(projectId), payload as Record<string, unknown>)
 }
 
 export const subscribeProject = (

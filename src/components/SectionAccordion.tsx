@@ -3,23 +3,13 @@ import {
   AccordionDetails,
   AccordionSummary,
   Box,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Button,
   IconButton,
-  Menu,
-  MenuItem,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material'
 import { useState } from 'react'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import AddRoundedIcon from '@mui/icons-material/AddRounded'
-import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
 import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -27,7 +17,8 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import type { Section } from '../types'
 import SortableItemCard from './SortableItemCard'
-import { VisibilityOffOutlined } from '@mui/icons-material'
+import AddItemDialog from './section/AddItemDialog'
+import SectionActionsMenu from './section/SectionActionsMenu'
 
 interface SectionAccordionProps {
   section: Section
@@ -93,7 +84,7 @@ const SectionAccordion = ({
           filter: isAllDone ? 'grayscale(0.15)' : 'none',
         }}
       >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <AccordionSummary component="div" expandIcon={<ExpandMoreIcon />}>
           <Stack direction="row" spacing={1.5} sx={{ width: '100%', alignItems: 'center' }}>
             <Box sx={{ flex: 1 }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
@@ -106,6 +97,7 @@ const SectionAccordion = ({
             <Stack direction="row" spacing={0}>
               <IconButton
                 size="small"
+                aria-label="Akcje sekcji"
                 onClick={(event) => {
                   event.stopPropagation()
                   setActionsAnchor(event.currentTarget)
@@ -116,6 +108,7 @@ const SectionAccordion = ({
               </IconButton>
               <IconButton
                 size="small"
+                aria-label="Przeciagnij sekcje"
                 {...attributes}
                 {...listeners}
                 onClick={(event) => event.stopPropagation()}
@@ -150,60 +143,20 @@ const SectionAccordion = ({
         </AccordionDetails>
       </Accordion>
 
-      <Dialog open={addOpen} onClose={() => setAddOpen(false)} fullWidth>
-        <DialogTitle>Nowe zadanie</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Nazwa zadania"
-            value={newItemTitle}
-            onChange={(event) => setNewItemTitle(event.target.value)}
-            fullWidth
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAddOpen(false)}>Anuluj</Button>
-          <Button variant="contained" onClick={handleAdd}>
-            Dodaj
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Menu
-        anchorEl={actionsAnchor}
-        open={Boolean(actionsAnchor)}
+      <AddItemDialog
+        open={addOpen}
+        title={newItemTitle}
+        onTitleChange={setNewItemTitle}
+        onClose={() => setAddOpen(false)}
+        onAdd={handleAdd}
+      />
+      <SectionActionsMenu
+        anchor={actionsAnchor}
         onClose={closeActions}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <MenuItem
-          onClick={() => {
-            setAddOpen(true)
-            closeActions()
-          }}
-        >
-          <AddRoundedIcon fontSize="small" />
-          <Box sx={{ marginLeft: 1 }}>Dodaj zadanie</Box>
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            onDeleteSection()
-            closeActions()
-          }}
-        >
-          <DeleteOutlineOutlinedIcon fontSize="small" />
-          <Box sx={{ marginLeft: 1 }}>Usun sekcje</Box>
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            onHideSection()
-            closeActions()
-          }}
-        >
-          <VisibilityOffOutlined fontSize="small" />
-          <Box sx={{ marginLeft: 1 }}>Ukryj sekcje</Box>
-        </MenuItem>
-      </Menu>
+        onAddItem={() => setAddOpen(true)}
+        onDelete={onDeleteSection}
+        onHide={onHideSection}
+      />
     </Box>
   )
 }

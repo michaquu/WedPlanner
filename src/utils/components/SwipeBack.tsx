@@ -28,6 +28,7 @@ export function SwipeBack({ children, action }: SwipeBackProps) {
   const handlePointerDown = (
     event: ReactPointerEvent<HTMLDivElement>,
   ) => {
+    if (event.clientX > EDGE_SIZE) return
     startX.current = event.clientX
     startY.current = event.clientY
     pointerId.current = event.pointerId
@@ -69,28 +70,16 @@ export function SwipeBack({ children, action }: SwipeBackProps) {
 
   return (
     <Box
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={resetGesture}
       sx={{
         position: 'relative',
         minHeight: '100dvh',
+        touchAction: 'pan-y',
       }}
     >
       {children}
-
-      <Box
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={resetGesture}
-        sx={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          bottom: 0,
-          width: `${EDGE_SIZE}px`,
-          zIndex: 9999,
-          touchAction: 'none',
-          backgroundColor: 'transparent',
-        }}
-      />
     </Box>
   )
 }

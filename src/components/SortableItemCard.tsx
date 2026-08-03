@@ -24,7 +24,7 @@ const formatDate = (value?: string) => {
 }
 
 const formatCost = (value?: number) => {
-  if (!value) return 'Brak'
+  if (value === undefined) return 'Brak'
   return `${value} zl`
 }
 
@@ -120,6 +120,7 @@ const SortableItemCard = ({
           </IconButton>
           <IconButton
             size="small"
+            aria-label="Usun zadanie"
             onClick={(event) => {
               event.stopPropagation()
               onDelete(item.id)
@@ -130,6 +131,7 @@ const SortableItemCard = ({
           </IconButton>
           <IconButton
             size="small"
+            aria-label="Przeciagnij zadanie"
             {...attributes}
             {...listeners}
             onClick={(event) => event.stopPropagation()}
