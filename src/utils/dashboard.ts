@@ -81,7 +81,7 @@ const formatReportDate = (value?: string) => {
   return year && month && day ? `'${day}.${month}.${year}` : value
 }
 
-export const downloadPlannerReport = (data: PlannerData) => {
+export const createPlannerReportCsv = (data: PlannerData) => {
   const rows = data.sections.flatMap((section) =>
     section.items.map((item) => [
       section.title,
@@ -104,9 +104,13 @@ export const downloadPlannerReport = (data: PlannerData) => {
     'Koszt PLN',
     'Liczba notatek',
   ]
-  const csv = [header, ...rows]
+  return [header, ...rows]
     .map((row) => row.map((value) => escapeCsv(value)).join(';'))
     .join('\r\n')
+}
+
+export const downloadPlannerReport = (data: PlannerData) => {
+  const csv = createPlannerReportCsv(data)
   const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a')
   link.href = url

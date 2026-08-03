@@ -31,8 +31,8 @@ const PlannerSearch = ({
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
         placeholder="Szukaj w zadaniach, notatkach, kosztach i terminach..."
-        aria-label="Szukaj w planerze"
         slotProps={{
+          htmlInput: { 'aria-label': 'Szukaj w planerze' },
           input: {
             startAdornment: (
               <InputAdornment position="start">
@@ -72,4 +72,3 @@ const PlannerSearch = ({
 }
 
 export default PlannerSearch
-

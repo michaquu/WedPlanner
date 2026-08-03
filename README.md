@@ -14,8 +14,15 @@ npm run dev
 Quality checks:
 
 ```bash
+npm test
 npm run lint
 npm run build
+```
+
+Run tests continuously while developing:
+
+```bash
+npm run test:watch
 ```
 
 ## Technology stack
