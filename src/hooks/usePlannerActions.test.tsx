@@ -20,7 +20,24 @@ describe('usePlannerActions', () => {
     expect(result.current.data.sections[0]?.items[0]).toMatchObject({
       checked: true,
       favorite: true,
+      status: 'Zrobione',
     })
+
+    act(() => result.current.actions.toggleItem('section-1', 'item-1'))
+    expect(result.current.data.sections[0]?.items[0]).toMatchObject({
+      checked: false,
+      status: 'Do zrobienia',
+    })
+  })
+
+  it('keeps completion synchronized when status is changed directly', () => {
+    const { result } = renderHook(() => useHarness(createPlannerData()))
+
+    act(() => result.current.actions.updateItem('section-1', 'item-1', { status: 'Zrobione' }))
+    expect(result.current.data.sections[0]?.items[0]?.checked).toBe(true)
+
+    act(() => result.current.actions.updateItem('section-1', 'item-1', { status: 'W trakcie' }))
+    expect(result.current.data.sections[0]?.items[0]?.checked).toBe(false)
   })
 
   it('adds and removes tasks without affecting other sections', () => {
@@ -59,4 +76,3 @@ describe('usePlannerActions', () => {
     ])
   })
 })
-

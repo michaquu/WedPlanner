@@ -1,10 +1,18 @@
 import { createSeedData } from '../data/seed'
 import type { Item, PlannerData, Section } from '../types'
 
+export type PlannerSort = 'manual' | 'dueDateAsc' | 'costAsc' | 'costDesc'
+
 export interface PlannerSummary {
   totalTasks: number
   doneTasks: number
   totalCost: number
+}
+
+export interface PlannerItemWithSection {
+  item: Item
+  sectionId: string
+  sectionTitle: string
 }
 
 export const normalizePlannerData = (input?: PlannerData): PlannerData => {
@@ -61,6 +69,41 @@ export const orderSectionsWithItems = (
     ...section,
     items: orderByIds(section.items, itemOrder[section.id] ?? []),
   }))
+
+const compareOptionalValues = <T>(
+  left: T | undefined,
+  right: T | undefined,
+  compare: (leftValue: T, rightValue: T) => number,
+) => {
+  if (left === undefined && right === undefined) return 0
+  if (left === undefined) return 1
+  if (right === undefined) return -1
+  return compare(left, right)
+}
+
+const compareItems = (left: Item, right: Item, sort: Exclude<PlannerSort, 'manual'>) => {
+  if (sort === 'dueDateAsc') {
+    const leftDueDate = left.dueDate?.trim() || undefined
+    const rightDueDate = right.dueDate?.trim() || undefined
+    return compareOptionalValues(leftDueDate, rightDueDate, (a, b) => a.localeCompare(b))
+  }
+
+  const direction = sort === 'costDesc' ? -1 : 1
+  return compareOptionalValues(left.cost, right.cost, (a, b) => (a - b) * direction)
+}
+
+export const sortPlannerItems = (sections: Section[], sort: PlannerSort) => {
+  const items = sections.flatMap<PlannerItemWithSection>((section) =>
+    section.items.map((item) => ({
+      item,
+      sectionId: section.id,
+      sectionTitle: section.title,
+    })),
+  )
+
+  if (sort === 'manual') return items
+  return items.sort((left, right) => compareItems(left.item, right.item, sort))
+}
 
 const normalizeSearchValue = (value: unknown) =>
   String(value ?? '')

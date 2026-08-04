@@ -12,6 +12,8 @@ import StyledCheckbox from '../utils/components/StyledCheckbox'
 interface SortableItemCardProps {
   item: Item
   sectionId: string
+  sectionTitle?: string
+  dragEnabled?: boolean
   onToggle: (itemId: string) => void
   onToggleFavorite: (itemId: string) => void
   onOpen: (itemId: string) => void
@@ -43,6 +45,8 @@ const statusColor = (status: Item['status']) => {
 const SortableItemCard = ({
   item,
   sectionId,
+  sectionTitle,
+  dragEnabled = true,
   onToggle,
   onToggleFavorite,
   onOpen,
@@ -52,6 +56,7 @@ const SortableItemCard = ({
     useSortable({
       id: item.id,
       data: { type: 'item', sectionId },
+      disabled: !dragEnabled,
     })
 
   const style = {
@@ -90,6 +95,9 @@ const SortableItemCard = ({
             {item.title}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            {sectionTitle && (
+              <Chip label={sectionTitle} color="primary" variant="outlined" size="small" />
+            )}
             <Typography variant="caption" color="text.secondary">
               Termin: {formatDate(item.dueDate)}
             </Typography>
@@ -129,16 +137,18 @@ const SortableItemCard = ({
           >
             <DeleteOutlineOutlinedIcon fontSize="small" />
           </IconButton>
-          <IconButton
-            size="small"
-            aria-label="Przeciagnij zadanie"
-            {...attributes}
-            {...listeners}
-            onClick={(event) => event.stopPropagation()}
-            sx={{ touchAction: 'none', padding: 0.25 }}
-          >
-            <DragIndicatorIcon fontSize="small" />
-          </IconButton>
+          {dragEnabled && (
+            <IconButton
+              size="small"
+              aria-label="Przeciagnij zadanie"
+              {...attributes}
+              {...listeners}
+              onClick={(event) => event.stopPropagation()}
+              sx={{ touchAction: 'none', padding: 0.25 }}
+            >
+              <DragIndicatorIcon fontSize="small" />
+            </IconButton>
+          )}
         </Stack>
       </Stack>
     </Paper>

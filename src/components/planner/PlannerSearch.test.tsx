@@ -1,20 +1,24 @@
 import { useState } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import PlannerSearch from './PlannerSearch'
+import type { PlannerSort } from '../../utils/plannerData'
 
 const SearchHarness = () => {
   const [query, setQuery] = useState('')
   const [favoriteOnly, setFavoriteOnly] = useState(false)
+  const [sort, setSort] = useState<PlannerSort>('manual')
   return (
     <PlannerSearch
       query={query}
       favoriteOnly={favoriteOnly}
       matchedItems={2}
       matchedSections={1}
+      sort={sort}
       onQueryChange={setQuery}
       onFavoriteOnlyChange={setFavoriteOnly}
+      onSortChange={setSort}
     />
   )
 }
@@ -45,5 +49,21 @@ describe('PlannerSearch', () => {
       'true',
     )
   })
-})
 
+  it('changes the task sorting', async () => {
+    const user = userEvent.setup()
+    render(<SearchHarness />)
+
+    await user.click(
+      screen.getByRole('button', { name: 'Sortuj zadania. Wybrano: Kolejność własna' }),
+    )
+    await user.click(screen.getByRole('radio', { name: 'Najbliższy termin' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Sortuj zadania' })).not.toBeInTheDocument()
+    })
+    expect(
+      screen.getByRole('button', { name: 'Sortuj zadania. Wybrano: Najbliższy termin' }),
+    ).toBeVisible()
+  })
+})

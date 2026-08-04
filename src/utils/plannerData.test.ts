@@ -9,6 +9,7 @@ import {
   normalizePlannerData,
   orderByIds,
   orderSectionsWithItems,
+  sortPlannerItems,
 } from './plannerData'
 
 describe('planner data utilities', () => {
@@ -107,5 +108,42 @@ describe('planner data utilities', () => {
 
     expect(getPlannerSummary(data)).toEqual({ totalTasks: 3, doneTasks: 1, totalCost: 1200 })
   })
-})
 
+  it('sorts tasks globally by due date or cost and keeps missing values last', () => {
+    const sections = [
+      createSection({
+        id: 'first-section',
+        title: 'First section',
+        items: [
+          createItem({ id: 'missing', dueDate: undefined, cost: undefined }),
+          createItem({ id: 'empty', dueDate: '', cost: 250 }),
+        ],
+      }),
+      createSection({
+        id: 'second-section',
+        title: 'Second section',
+        items: [
+          createItem({ id: 'later', dueDate: '2026-12-01', cost: 500 }),
+          createItem({ id: 'sooner', dueDate: '2026-09-01', cost: 100 }),
+        ],
+      }),
+    ]
+
+    expect(sortPlannerItems(sections, 'dueDateAsc').map(({ item }) => item.id)).toEqual([
+      'sooner',
+      'later',
+      'missing',
+      'empty',
+    ])
+    expect(sortPlannerItems(sections, 'costDesc').map(({ item }) => item.id)).toEqual([
+      'later',
+      'empty',
+      'sooner',
+      'missing',
+    ])
+    expect(sortPlannerItems(sections, 'dueDateAsc')[0]).toMatchObject({
+      sectionId: 'second-section',
+      sectionTitle: 'Second section',
+    })
+  })
+})

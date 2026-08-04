@@ -21,10 +21,30 @@ export const usePlannerActions = (setData: Dispatch<SetStateAction<PlannerData>>
   }
 
   const updateItem = (sectionId: string, itemId: string, changes: Partial<Item>) =>
-    mutateItem(sectionId, itemId, () => changes)
+    mutateItem(sectionId, itemId, () => {
+      if (changes.checked !== undefined) {
+        return {
+          ...changes,
+          status: changes.checked ? 'Zrobione' : 'Do zrobienia',
+        }
+      }
+      if (changes.status !== undefined) {
+        return {
+          ...changes,
+          checked: changes.status === 'Zrobione',
+        }
+      }
+      return changes
+    })
 
   const toggleItem = (sectionId: string, itemId: string) =>
-    mutateItem(sectionId, itemId, (item) => ({ checked: !item.checked }))
+    mutateItem(sectionId, itemId, (item) => {
+      const checked = !item.checked
+      return {
+        checked,
+        status: checked ? 'Zrobione' : 'Do zrobienia',
+      }
+    })
 
   const toggleFavorite = (sectionId: string, itemId: string) =>
     mutateItem(sectionId, itemId, (item) => ({ favorite: !item.favorite }))
@@ -90,4 +110,3 @@ export const usePlannerActions = (setData: Dispatch<SetStateAction<PlannerData>>
     deleteSection,
   }
 }
-

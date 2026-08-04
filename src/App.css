@@ -30,6 +30,7 @@
 .hero-title {
   font-size: clamp(1.4rem, 4vw, 1.9rem);
   letter-spacing: -0.5px;
+  white-space: nowrap;
 }
 
 .app-main {
@@ -92,8 +93,10 @@
 
 .favorite-filter {
   flex: 0 0 auto;
-  border: 1px solid rgba(47, 39, 36, 0.15) !important;
-  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+.sort-filter {
+  flex: 0 0 auto;
 }
 
 .dashboard-card {
@@ -129,7 +132,7 @@
   }
 
   .hero-title {
-    font-size: clamp(1.25rem, 6vw, 1.6rem);
+    font-size: clamp(1.1rem, 5vw, 1.6rem);
   }
 
   .planner-header {

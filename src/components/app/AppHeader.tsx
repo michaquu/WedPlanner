@@ -23,20 +23,27 @@ const AppHeader = ({
     <Container maxWidth="lg">
       <Stack
         direction="row"
-        spacing={1}
+        spacing={{ xs: 0.5, sm: 1 }}
         className="hero-stack"
         sx={{ alignItems: 'center', justifyContent: 'space-between' }}
       >
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <IconButton color="primary" aria-label="Menu" className="hero-add" onClick={onOpenMenu}>
+        <Stack direction="row" spacing={{ xs: 0.5, sm: 1 }} sx={{ alignItems: 'center' }}>
+          <IconButton
+            size="small"
+            color="primary"
+            aria-label="Menu"
+            className="hero-add"
+            onClick={onOpenMenu}
+          >
             <MenuRoundedIcon />
           </IconButton>
           <Typography variant="h5" className="hero-title">
             Wedding Planner
           </Typography>
         </Stack>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={{ xs: 0, sm: 1 }}>
           <IconButton
+            size="small"
             color="primary"
             aria-label={searchVisible ? 'Ukryj wyszukiwarke' : 'Pokaz wyszukiwarke'}
             className="hero-add"
@@ -45,6 +52,7 @@ const AppHeader = ({
             <SearchRoundedIcon />
           </IconButton>
           <IconButton
+            size="small"
             color="primary"
             aria-label="Podsumowanie"
             className="hero-add"
@@ -53,6 +61,7 @@ const AppHeader = ({
             <InfoOutlinedIcon />
           </IconButton>
           <IconButton
+            size="small"
             color="primary"
             aria-label="Dodaj nowa sekcje"
             className="hero-add"
@@ -67,4 +76,3 @@ const AppHeader = ({
 )
 
 export default AppHeader
-

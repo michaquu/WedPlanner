@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 import { Box, Paper, Stack, Typography } from '@mui/material'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import {
@@ -12,9 +20,15 @@ import { STORAGE_KEYS } from '../constants'
 import { usePlannerActions } from '../hooks/usePlannerActions'
 import { usePlannerDnd } from '../hooks/usePlannerDnd'
 import { useStoredState } from '../hooks/useStoredState'
-import { filterSections, orderSectionsWithItems } from '../utils/plannerData'
+import {
+  filterSections,
+  orderSectionsWithItems,
+  sortPlannerItems,
+  type PlannerSort,
+} from '../utils/plannerData'
 import ItemDetailsView from './ItemDetailsView'
 import SectionAccordion from './SectionAccordion'
+import SortableItemCard from './SortableItemCard'
 import DeleteConfirmationDialog, {
   type DeleteTarget,
 } from './planner/DeleteConfirmationDialog'
@@ -57,6 +71,8 @@ const PlannerPage = ({
   onFavoriteOnlyChange,
 }: PlannerPageProps) => {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [sort, setSort] = useState<PlannerSort>('manual')
+  const listScrollPosition = useRef<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [expandedSections, setExpandedSections] = useStoredState<Record<string, boolean>>(
     STORAGE_KEYS.collapsedSections,
@@ -71,6 +87,10 @@ const PlannerPage = ({
   const displayedSections = useMemo(
     () => filterSections(orderedSections, hiddenSections, searchQuery, favoriteOnly),
     [favoriteOnly, hiddenSections, orderedSections, searchQuery],
+  )
+  const sortedItems = useMemo(
+    () => sortPlannerItems(displayedSections, sort),
+    [displayedSections, sort],
   )
   const matchedItemsCount = displayedSections.reduce(
     (total, section) => total + section.items.length,
@@ -96,8 +116,18 @@ const PlannerPage = ({
     if (selectedItemId) window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [selectedItemId])
 
+  useLayoutEffect(() => {
+    if (selectedItemId || listScrollPosition.current === null) return
+    window.scrollTo({ top: listScrollPosition.current, behavior: 'auto' })
+    listScrollPosition.current = null
+  }, [selectedItemId])
+
   useEffect(() => {
     if (!navigateSectionId) return
+    if (sort !== 'manual') {
+      const timeout = window.setTimeout(() => setSort('manual'), 0)
+      return () => window.clearTimeout(timeout)
+    }
     const timeout = window.setTimeout(() => {
       setExpandedSections((current) => ({ ...current, [navigateSectionId]: true }))
       setSelectedItemId(null)
@@ -108,7 +138,7 @@ const PlannerPage = ({
       onNavigateHandled()
     }, 0)
     return () => window.clearTimeout(timeout)
-  }, [navigateSectionId, onNavigateHandled, setExpandedSections])
+  }, [navigateSectionId, onNavigateHandled, setExpandedSections, sort])
 
   const requestItemDeletion = (sectionId: string, itemId: string) => {
     const item = data.sections
@@ -121,6 +151,13 @@ const PlannerPage = ({
     const section = data.sections.find((entry) => entry.id === sectionId)
     setDeleteTarget({ type: 'section', sectionId, title: section?.title })
   }
+
+  const handleOpenItem = (itemId: string) => {
+    listScrollPosition.current = window.scrollY
+    setSelectedItemId(itemId)
+  }
+
+  const handleBackToPlanner = () => setSelectedItemId(null)
 
   const handleConfirmDelete = () => {
     if (!deleteTarget) return
@@ -159,7 +196,7 @@ const PlannerPage = ({
     return (
       <ItemDetailsView
         item={selectedItem.item}
-        onBack={() => setSelectedItemId(null)}
+        onBack={handleBackToPlanner}
         onUpdate={(changes) => actions.updateItem(selectedItem.sectionId, selectedItem.item.id, changes)}
         onAddNote={(note) => actions.addNote(selectedItem.sectionId, selectedItem.item.id, note)}
         onRemoveNote={(noteId) =>
@@ -187,8 +224,10 @@ const PlannerPage = ({
           favoriteOnly={favoriteOnly}
           matchedItems={matchedItemsCount}
           matchedSections={displayedSections.length}
+          sort={sort}
           onQueryChange={onSearchQueryChange}
           onFavoriteOnlyChange={onFavoriteOnlyChange}
+          onSortChange={setSort}
         />
       )}
 
@@ -199,37 +238,65 @@ const PlannerPage = ({
         onDragCancel={dnd.handleDragCancel}
       >
         <SortableContext
-          items={displayedSections.map((section) => section.id)}
+          items={
+            sort === 'manual'
+              ? displayedSections.map((section) => section.id)
+              : sortedItems.map(({ item }) => item.id)
+          }
           strategy={verticalListSortingStrategy}
         >
           <Stack spacing={2.5}>
-            {displayedSections.map((section) => (
-              <SectionAccordion
-                key={section.id}
-                section={section}
-                onToggleItem={(itemId) => actions.toggleItem(section.id, itemId)}
-                onToggleFavorite={(itemId) => actions.toggleFavorite(section.id, itemId)}
-                onOpenItem={setSelectedItemId}
-                onAddItem={(title) => actions.addItem(section.id, title)}
-                onDeleteItem={(itemId) => requestItemDeletion(section.id, itemId)}
-                onDeleteSection={() => requestSectionDeletion(section.id)}
-                onHideSection={() =>
-                  setHiddenSections((current) => ({ ...current, [section.id]: true }))
-                }
-                expanded={expandedSections[section.id] ?? true}
-                onToggleExpanded={() =>
-                  setExpandedSections((current) => ({
-                    ...current,
-                    [section.id]: !(current[section.id] ?? true),
-                  }))
-                }
-              />
-            ))}
-            {hasActiveFilter && displayedSections.length === 0 && (
+            {sort === 'manual' ? (
+              displayedSections.map((section) => (
+                <SectionAccordion
+                  key={section.id}
+                  section={section}
+                  onToggleItem={(itemId) => actions.toggleItem(section.id, itemId)}
+                  onToggleFavorite={(itemId) => actions.toggleFavorite(section.id, itemId)}
+                  onOpenItem={handleOpenItem}
+                  onAddItem={(title) => actions.addItem(section.id, title)}
+                  onDeleteItem={(itemId) => requestItemDeletion(section.id, itemId)}
+                  onDeleteSection={() => requestSectionDeletion(section.id)}
+                  onHideSection={() =>
+                    setHiddenSections((current) => ({ ...current, [section.id]: true }))
+                  }
+                  expanded={expandedSections[section.id] ?? true}
+                  onToggleExpanded={() =>
+                    setExpandedSections((current) => ({
+                      ...current,
+                      [section.id]: !(current[section.id] ?? true),
+                    }))
+                  }
+                />
+              ))
+            ) : (
+              <Stack spacing={1.25}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Wszystkie zadania ({sortedItems.length})
+                </Typography>
+                {sortedItems.map(({ item, sectionId, sectionTitle }) => (
+                  <SortableItemCard
+                    key={item.id}
+                    item={item}
+                    sectionId={sectionId}
+                    sectionTitle={sectionTitle}
+                    dragEnabled={false}
+                    onToggle={() => actions.toggleItem(sectionId, item.id)}
+                    onToggleFavorite={() => actions.toggleFavorite(sectionId, item.id)}
+                    onOpen={handleOpenItem}
+                    onDelete={() => requestItemDeletion(sectionId, item.id)}
+                  />
+                ))}
+              </Stack>
+            )}
+            {((sort === 'manual' && hasActiveFilter && displayedSections.length === 0) ||
+              (sort !== 'manual' && sortedItems.length === 0)) && (
               <Paper className="empty-search" elevation={0}>
                 <SearchRoundedIcon color="disabled" />
                 <Typography variant="body2" color="text.secondary">
-                  Brak zadan pasujacych do wyszukiwania.
+                  {hasActiveFilter
+                    ? 'Brak zadan pasujacych do wyszukiwania.'
+                    : 'Brak zadan do wyswietlenia.'}
                 </Typography>
               </Paper>
             )}
