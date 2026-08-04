@@ -10,6 +10,7 @@ import MissingProject from './components/app/MissingProject'
 import NavigationDrawer from './components/app/NavigationDrawer'
 import ProjectLoading from './components/app/ProjectLoading'
 import SummaryPopover from './components/app/SummaryPopover'
+import UpdateBanner from './components/app/UpdateBanner'
 import DashboardPage from './components/DashboardPage'
 import PlannerPage from './components/PlannerPage'
 import { useProjectData } from './hooks/useProjectData'
@@ -184,6 +185,7 @@ function App() {
           Blad zapisu. Sprobuj ponownie.
         </Alert>
       </Snackbar>
+      <UpdateBanner isSaving={project.isSaving} />
     </div>
   )
 }
