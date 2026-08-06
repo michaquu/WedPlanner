@@ -24,6 +24,12 @@ const SearchHarness = () => {
 }
 
 describe('PlannerSearch', () => {
+  it('does not focus the search field automatically', () => {
+    render(<SearchHarness />)
+
+    expect(screen.getByRole('textbox', { name: 'Szukaj w planerze' })).not.toHaveFocus()
+  })
+
   it('updates and clears the search query', async () => {
     const user = userEvent.setup()
     render(<SearchHarness />)

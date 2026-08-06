@@ -70,8 +70,11 @@ const UpdateBanner = ({ isSaving }: UpdateBannerProps) => {
   return (
     <Snackbar
       open={needRefresh && !dismissed}
-      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      sx={{ top: { xs: 8, sm: 16 }, width: { xs: 'calc(100% - 24px)', sm: 'auto' } }}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      sx={{
+        bottom: { xs: 'calc(8px + env(safe-area-inset-bottom))', sm: 16 },
+        width: { xs: 'calc(100% - 24px)', sm: 'auto' },
+      }}
     >
       <Alert
         severity="info"

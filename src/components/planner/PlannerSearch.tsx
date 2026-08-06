@@ -67,12 +67,11 @@ const PlannerSearch = ({
           <SortRoundedIcon />
         </IconButton>
         <TextField
-          autoFocus
           fullWidth
           size="small"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Szukaj w zadaniach, notatkach, kosztach i terminach..."
+          placeholder="Szukaj w zadaniach"
           slotProps={{
             htmlInput: { 'aria-label': 'Szukaj w planerze' },
             input: {
