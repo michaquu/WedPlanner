@@ -7,6 +7,7 @@ export const createItem = (overrides: Partial<Item> = {}): Item => ({
   favorite: false,
   status: 'Do zrobienia',
   dueDate: '',
+  costPaid: false,
   notes: [],
   ...overrides,
 })
@@ -21,4 +22,3 @@ export const createSection = (overrides: Partial<Section> = {}): Section => ({
 export const createPlannerData = (sections: Section[] = [createSection()]): PlannerData => ({
   sections,
 })
-

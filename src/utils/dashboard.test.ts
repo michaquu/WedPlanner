@@ -15,7 +15,13 @@ describe('dashboard utilities', () => {
       createSection({
         id: 'first',
         items: [
-          createItem({ id: 'done', checked: true, cost: 1000, dueDate: '2026-08-01' }),
+          createItem({
+            id: 'done',
+            checked: true,
+            cost: 1000,
+            costPaid: true,
+            dueDate: '2026-08-01',
+          }),
           createItem({ id: 'overdue', cost: 500, dueDate: '2026-08-02' }),
           createItem({ id: 'upcoming', dueDate: '2026-08-04' }),
         ],
@@ -25,6 +31,8 @@ describe('dashboard utilities', () => {
     const metrics = getDashboardMetrics(data)
 
     expect(metrics.totalCost).toBe(1500)
+    expect(metrics.paidCost).toBe(1000)
+    expect(metrics.remainingCost).toBe(500)
     expect(metrics.completedItems).toBe(1)
     expect(metrics.completion).toBe(33)
     expect(metrics.overdueItems).toBe(1)
@@ -55,4 +63,3 @@ describe('dashboard utilities', () => {
     expect(csv).toContain('"5900"')
   })
 })
-

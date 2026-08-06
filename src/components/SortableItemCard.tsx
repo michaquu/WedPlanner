@@ -101,8 +101,13 @@ const SortableItemCard = ({
             <Typography variant="caption" color="text.secondary">
               Termin: {formatDate(item.dueDate)}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              color={item.costPaid && item.cost !== undefined ? 'success.main' : 'text.secondary'}
+              sx={{ fontWeight: item.costPaid && item.cost !== undefined ? 700 : 400 }}
+            >
               Koszt: {formatCost(item.cost)}
+              {item.cost !== undefined && !item.costPaid && ' · nieopłacone'}
             </Typography>
             <Box sx={{ display: 'flex', flex: 1, justifyContent: 'flex-end', paddingTop: '2px' }}>
               <Chip label={item.status} color={statusColor(item.status)} size="small" />

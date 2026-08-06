@@ -1,6 +1,7 @@
 import { Button, Divider, Popover, Stack, Typography } from '@mui/material'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import type { PlannerSummary } from '../../utils/plannerData'
+import { formatCurrency } from '../../utils/dashboard'
 
 interface SummaryPopoverProps {
   anchor: HTMLElement | null
@@ -31,7 +32,13 @@ const SummaryPopover = ({
       <Typography variant="body2">
         Zadania: {summary.doneTasks}/{summary.totalTasks}
       </Typography>
-      <Typography variant="body2">Suma kosztow: {summary.totalCost} zl</Typography>
+      <Typography variant="body2">Koszty łącznie: {formatCurrency(summary.totalCost)}</Typography>
+      <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+        Opłacone: {formatCurrency(summary.paidCost)}
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Do zapłaty: {formatCurrency(summary.remainingCost)}
+      </Typography>
       <Typography variant="body2">Sekcje: {sectionCount}</Typography>
       <Button
         size="small"
@@ -46,4 +53,3 @@ const SummaryPopover = ({
 )
 
 export default SummaryPopover
-

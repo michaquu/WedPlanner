@@ -8,6 +8,7 @@ export interface DashboardSection {
   id: string
   title: string
   cost: number
+  paidCost: number
   completed: number
   total: number
 }
@@ -16,6 +17,8 @@ export interface DashboardMetrics {
   items: DashboardItem[]
   completedItems: number
   totalCost: number
+  paidCost: number
+  remainingCost: number
   pricedItems: number
   completion: number
   overdueItems: number
@@ -41,12 +44,20 @@ export const getDashboardMetrics = (data: PlannerData): DashboardMetrics => {
   )
   const completedItems = items.filter((item) => item.checked).length
   const totalCost = items.reduce((sum, item) => sum + (item.cost ?? 0), 0)
+  const paidCost = items.reduce(
+    (sum, item) => sum + (item.costPaid ? (item.cost ?? 0) : 0),
+    0,
+  )
   const today = getLocalDate()
   const sections = data.sections
     .map((section) => ({
       id: section.id,
       title: section.title,
       cost: section.items.reduce((sum, item) => sum + (item.cost ?? 0), 0),
+      paidCost: section.items.reduce(
+        (sum, item) => sum + (item.costPaid ? (item.cost ?? 0) : 0),
+        0,
+      ),
       completed: section.items.filter((item) => item.checked).length,
       total: section.items.length,
     }))
@@ -56,6 +67,8 @@ export const getDashboardMetrics = (data: PlannerData): DashboardMetrics => {
     items,
     completedItems,
     totalCost,
+    paidCost,
+    remainingCost: totalCost - paidCost,
     pricedItems: items.filter((item) => item.cost !== undefined).length,
     completion: items.length ? Math.round((completedItems / items.length) * 100) : 0,
     overdueItems: items.filter((item) => item.dueDate && item.dueDate < today && !item.checked)
@@ -91,6 +104,7 @@ export const createPlannerReportCsv = (data: PlannerData) => {
       item.favorite ? 'Tak' : 'Nie',
       formatReportDate(item.dueDate),
       item.cost,
+      item.costPaid ? 'Tak' : 'Nie',
       item.notes.length,
     ]),
   )
@@ -102,6 +116,7 @@ export const createPlannerReportCsv = (data: PlannerData) => {
     'Polubione',
     'Termin',
     'Koszt PLN',
+    'Koszt opłacony',
     'Liczba notatek',
   ]
   return [header, ...rows]

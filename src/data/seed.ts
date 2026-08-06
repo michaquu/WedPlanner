@@ -9,6 +9,7 @@ const createItems = (sectionId: string, titles: string[]): Item[] => {
     status: 'Do zrobienia',
     dueDate: '',
     cost: undefined,
+    costPaid: false,
     notes: [],
   }))
 }

@@ -74,6 +74,7 @@ export const usePlannerActions = (setData: Dispatch<SetStateAction<PlannerData>>
                   favorite: false,
                   status: 'Do zrobienia',
                   dueDate: '',
+                  costPaid: false,
                   notes: [],
                 },
               ],

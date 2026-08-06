@@ -22,6 +22,7 @@ describe('planner data utilities', () => {
 
     expect(normalized.sections[0]?.items[0]).toMatchObject({
       favorite: false,
+      costPaid: false,
       notes: [],
     })
   })
@@ -99,14 +100,20 @@ describe('planner data utilities', () => {
     const data = createPlannerData([
       createSection({
         items: [
-          createItem({ id: 'done', checked: true, cost: 1200 }),
+          createItem({ id: 'done', checked: true, cost: 1200, costPaid: true }),
           createItem({ id: 'free', cost: 0 }),
           createItem({ id: 'unknown', cost: undefined }),
         ],
       }),
     ])
 
-    expect(getPlannerSummary(data)).toEqual({ totalTasks: 3, doneTasks: 1, totalCost: 1200 })
+    expect(getPlannerSummary(data)).toEqual({
+      totalTasks: 3,
+      doneTasks: 1,
+      totalCost: 1200,
+      paidCost: 1200,
+      remainingCost: 0,
+    })
   })
 
   it('sorts tasks globally by due date or cost and keeps missing values last', () => {

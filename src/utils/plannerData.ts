@@ -7,6 +7,8 @@ export interface PlannerSummary {
   totalTasks: number
   doneTasks: number
   totalCost: number
+  paidCost: number
+  remainingCost: number
 }
 
 export interface PlannerItemWithSection {
@@ -24,6 +26,7 @@ export const normalizePlannerData = (input?: PlannerData): PlannerData => {
         ...item,
         favorite: item.favorite ?? false,
         cost: item.cost ?? undefined,
+        costPaid: item.costPaid ?? false,
         notes: item.notes ?? [],
       })),
     })),
@@ -154,8 +157,10 @@ export const getPlannerSummary = (data: PlannerData): PlannerSummary =>
         summary.totalTasks += 1
         if (item.checked) summary.doneTasks += 1
         summary.totalCost += item.cost ?? 0
+        if (item.costPaid) summary.paidCost += item.cost ?? 0
       })
+      summary.remainingCost = summary.totalCost - summary.paidCost
       return summary
     },
-    { totalTasks: 0, doneTasks: 0, totalCost: 0 },
+    { totalTasks: 0, doneTasks: 0, totalCost: 0, paidCost: 0, remainingCost: 0 },
   )

@@ -33,7 +33,7 @@ const ItemDetailsView = ({
               Szczegoly zadania
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Edytuj status, termin, koszt i notatki.
+              Edytuj status, termin, koszt, płatność i notatki.
             </Typography>
           </Box>
         </Stack>

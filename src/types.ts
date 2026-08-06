@@ -20,6 +20,7 @@ export interface Item {
   status: ItemStatus
   dueDate?: string
   cost?: number
+  costPaid: boolean
   notes: Note[]
 }
 

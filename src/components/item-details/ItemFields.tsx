@@ -8,6 +8,7 @@ import {
   Stack,
   Switch,
   TextField,
+  Typography,
 } from '@mui/material'
 import type { Item, ItemStatus } from '../../types'
 
@@ -52,13 +53,35 @@ const ItemFields = ({ item, onUpdate }: ItemFieldsProps) => (
       label="Koszt"
       type="number"
       value={item.cost ?? ''}
-      onChange={(event) =>
-        onUpdate({ cost: event.target.value === '' ? undefined : Number(event.target.value) })
-      }
+      onChange={(event) => {
+        const cost = event.target.value === '' ? undefined : Number(event.target.value)
+        onUpdate({ cost, ...(cost === undefined ? { costPaid: false } : {}) })
+      }}
       fullWidth
       slotProps={{
         htmlInput: { min: 0, step: 0.01 },
-        input: { endAdornment: <InputAdornment position="end">zl</InputAdornment> },
+        input: {
+          endAdornment: (
+            <InputAdornment position="end">
+              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                {item.cost !== undefined && !item.costPaid && (
+                  <Typography variant="caption" color="text.secondary">
+                    Nieopłacone
+                  </Typography>
+                )}
+                <Switch
+                  size="small"
+                  checked={item.costPaid}
+                  disabled={item.cost === undefined}
+                  onChange={(event) => onUpdate({ costPaid: event.target.checked })}
+                  color="success"
+                  slotProps={{ input: { 'aria-label': 'Oznacz koszt jako opłacony' } }}
+                />
+                <Typography variant="body2">zł</Typography>
+              </Stack>
+            </InputAdornment>
+          ),
+        },
       }}
     />
     <FormControlLabel
@@ -74,4 +97,3 @@ const ItemFields = ({ item, onUpdate }: ItemFieldsProps) => (
 )
 
 export default ItemFields
-

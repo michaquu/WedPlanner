@@ -15,11 +15,21 @@ const DashboardStats = ({ metrics, sectionCount }: DashboardStatsProps) => {
       detail: `${metrics.completedItems}/${metrics.items.length} zadan`,
     },
     {
-      label: 'Laczny koszt',
+      label: 'Łączny koszt',
       value: formatCurrency(metrics.totalCost),
       detail: `${metrics.pricedItems} wycenionych zadan`,
     },
-    { label: 'Sekcje', value: sectionCount, detail: `${metrics.items.length} zadan lacznie` },
+    {
+      label: 'Opłacone',
+      value: formatCurrency(metrics.paidCost),
+      detail: `z ${formatCurrency(metrics.totalCost)}`,
+      color: 'success.main',
+    },
+    {
+      label: 'Do zapłaty',
+      value: formatCurrency(metrics.remainingCost),
+      detail: `${sectionCount} sekcji`,
+    },
     { label: 'Po terminie', value: metrics.overdueItems, detail: 'nieukonczonych zadan' },
   ]
   return (
@@ -32,7 +42,7 @@ const DashboardStats = ({ metrics, sectionCount }: DashboardStatsProps) => {
           <Typography
             variant="h5"
             className="dashboard-stat-value"
-            sx={{ fontWeight: 700, marginY: 0.5 }}
+            sx={{ fontWeight: 700, marginY: 0.5, color: stat.color }}
           >
             {stat.value}
           </Typography>
@@ -46,4 +56,3 @@ const DashboardStats = ({ metrics, sectionCount }: DashboardStatsProps) => {
 }
 
 export default DashboardStats
-

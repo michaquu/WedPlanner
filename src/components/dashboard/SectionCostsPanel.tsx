@@ -29,6 +29,10 @@ const SectionCostsPanel = ({ sections, maxCost }: SectionCostsPanelProps) => (
             value={(section.cost / maxCost) * 100}
             sx={{ marginTop: 0.75, height: 7, borderRadius: 999 }}
           />
+          <Typography variant="caption" color="text.secondary">
+            Opłacone: {formatCurrency(section.paidCost)} · do zapłaty:{' '}
+            {formatCurrency(section.cost - section.paidCost)}
+          </Typography>
         </Box>
       ))}
     </Stack>
@@ -36,4 +40,3 @@ const SectionCostsPanel = ({ sections, maxCost }: SectionCostsPanelProps) => (
 )
 
 export default SectionCostsPanel
-
