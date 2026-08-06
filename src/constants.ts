@@ -5,7 +5,7 @@ export const STORAGE_KEYS = {
   itemOrder: 'wedding-planner-item-order-v1',
   searchVisible: 'wedding-planner-search-visible-v1',
   collapsedSections: 'wedding-planner-collapse-v1',
+  deliveredReminders: 'wedding-planner-delivered-reminders-v1',
 } as const
 
 export const DEFAULT_PROJECT_ID = '39511bce-7fa5-4a62-8a5d-3d81e9b0be05'
-

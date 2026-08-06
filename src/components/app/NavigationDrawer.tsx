@@ -14,9 +14,11 @@ import {
   Typography,
 } from '@mui/material'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
+import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined'
 import ShareRoundedIcon from '@mui/icons-material/ShareRounded'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
 import type { Section } from '../../types'
+import type { DeadlineNotificationStatus } from '../../hooks/useDeadlineNotifications'
 
 interface NavigationDrawerProps {
   open: boolean
@@ -28,12 +30,14 @@ interface NavigationDrawerProps {
   isLoading: boolean
   isSaving: boolean
   version: string
+  notificationStatus: DeadlineNotificationStatus
   onClose: () => void
   onNavigate: (sectionId: string) => void
   onOpenDashboard: () => void
   onProjectIdInputChange: (value: string) => void
   onSelectProject: () => void
   onCreateProject: () => void
+  onEnableNotifications: () => void
 }
 
 const ProjectStatus = ({ isLoading, isSaving }: Pick<NavigationDrawerProps, 'isLoading' | 'isSaving'>) => {
@@ -59,12 +63,14 @@ const NavigationDrawer = ({
   isLoading,
   isSaving,
   version,
+  notificationStatus,
   onClose,
   onNavigate,
   onOpenDashboard,
   onProjectIdInputChange,
   onSelectProject,
   onCreateProject,
+  onEnableNotifications,
 }: NavigationDrawerProps) => {
   const hidden = sections.filter((section) => hiddenSections[section.id])
 
@@ -120,6 +126,29 @@ const NavigationDrawer = ({
         </Typography>
         <Stack spacing={1.5}>
           <Box>
+            <Typography variant="subtitle2">Powiadomienia o terminach</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              Przypomnienia 7 i 2 dni przed terminem o 11:00.
+            </Typography>
+            <Button
+              size="small"
+              variant={notificationStatus === 'granted' ? 'text' : 'outlined'}
+              startIcon={<NotificationsActiveOutlinedIcon />}
+              onClick={onEnableNotifications}
+              disabled={notificationStatus === 'granted' || notificationStatus === 'unsupported'}
+              sx={{ marginTop: 1 }}
+            >
+              {notificationStatus === 'granted'
+                ? 'Powiadomienia włączone'
+                : notificationStatus === 'denied'
+                  ? 'Powiadomienia zablokowane'
+                  : notificationStatus === 'unsupported'
+                    ? 'Brak obsługi powiadomień'
+                    : 'Włącz powiadomienia'}
+            </Button>
+          </Box>
+          <Divider />
+          <Box>
             <Typography variant="caption" color="text.secondary">
               Aktualne ID projektu
             </Typography>
@@ -174,4 +203,3 @@ const NavigationDrawer = ({
 }
 
 export default NavigationDrawer
-

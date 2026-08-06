@@ -14,6 +14,7 @@ import UpdateBanner from './components/app/UpdateBanner'
 import DashboardPage from './components/DashboardPage'
 import PlannerPage from './components/PlannerPage'
 import { useProjectData } from './hooks/useProjectData'
+import { useDeadlineNotifications } from './hooks/useDeadlineNotifications'
 import { useStoredState } from './hooks/useStoredState'
 import {
   getEffectiveItemOrder,
@@ -26,6 +27,7 @@ type AppView = 'planner' | 'dashboard'
 
 function App() {
   const project = useProjectData()
+  const deadlineNotifications = useDeadlineNotifications(project.data, project.projectId)
   const [activeView, setActiveView] = useState<AppView>('planner')
   const [searchQuery, setSearchQuery] = useState('')
   const [favoriteOnly, setFavoriteOnly] = useState(false)
@@ -169,12 +171,14 @@ function App() {
         isLoading={project.isLoading}
         isSaving={project.isSaving}
         version={packageJson.version}
+        notificationStatus={deadlineNotifications.status}
         onClose={() => setDrawerOpen(false)}
         onNavigate={handleNavigateSection}
         onOpenDashboard={handleOpenDashboard}
         onProjectIdInputChange={setProjectIdInput}
         onSelectProject={handleSelectProject}
         onCreateProject={project.createNewProject}
+        onEnableNotifications={deadlineNotifications.requestPermission}
       />
       <Snackbar
         open={project.saveError}
