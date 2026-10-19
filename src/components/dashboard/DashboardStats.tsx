@@ -1,6 +1,6 @@
 import { Box, Paper, Typography } from '@mui/material'
 import type { DashboardMetrics } from '../../utils/dashboard'
-import { formatCurrency } from '../../utils/dashboard'
+import { formatCurrency } from '../../utils/formatters'
 
 interface DashboardStatsProps {
   metrics: DashboardMetrics

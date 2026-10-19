@@ -1,7 +1,7 @@
 import { Button, Divider, Popover, Stack, Typography } from '@mui/material'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import type { PlannerSummary } from '../../utils/plannerData'
-import { formatCurrency } from '../../utils/dashboard'
+import { formatCurrency } from '../../utils/formatters'
 
 interface SummaryPopoverProps {
   anchor: HTMLElement | null

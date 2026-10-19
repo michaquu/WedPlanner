@@ -37,6 +37,7 @@ const readFileAsDataUrl = (file: File) =>
 const NoteComposer = ({ onAdd }: NoteComposerProps) => {
   const [type, setType] = useState<NoteType>('text')
   const [text, setText] = useState('')
+  const [reminderAt, setReminderAt] = useState('')
   const [attachment, setAttachment] = useState<Attachment | null>(null)
   const [fileError, setFileError] = useState(false)
   const canAdd = useMemo(
@@ -46,6 +47,7 @@ const NoteComposer = ({ onAdd }: NoteComposerProps) => {
 
   const resetContent = () => {
     setText('')
+    setReminderAt('')
     setAttachment(null)
     setFileError(false)
   }
@@ -74,7 +76,12 @@ const NoteComposer = ({ onAdd }: NoteComposerProps) => {
 
   const handleAdd = () => {
     if (!canAdd) return
-    const common = { id: uuid(), type, createdAt: new Date().toISOString() }
+    const common = {
+      id: uuid(),
+      type,
+      createdAt: new Date().toISOString(),
+      ...(reminderAt ? { reminderAt: new Date(reminderAt).toISOString() } : {}),
+    }
     if (type === 'image' || type === 'file') {
       if (!attachment) return
       onAdd({ ...common, ...attachment })
@@ -123,6 +130,14 @@ const NoteComposer = ({ onAdd }: NoteComposerProps) => {
           rows={type === 'text' ? 3 : 1}
         />
       )}
+      <TextField
+        label="Przypomnij (opcjonalnie)"
+        type="datetime-local"
+        value={reminderAt}
+        onChange={(event) => setReminderAt(event.target.value)}
+        fullWidth
+        slotProps={{ inputLabel: { shrink: true } }}
+      />
       {attachment && (
         <Typography variant="caption" color="text.secondary">
           Wybrano: {attachment.fileName}

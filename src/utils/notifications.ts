@@ -14,26 +14,37 @@ export interface DeadlineReminder {
 }
 
 const getReminderDate = (dueDate: string, daysBefore: number) => {
-  const [year, month, day] = dueDate.split('-').map(Number)
-  if (!year || !month || !day) return null
-  const triggerAt = new Date(year, month - 1, day - daysBefore, REMINDER_HOUR, 0, 0, 0)
-  return Number.isNaN(triggerAt.getTime()) ? null : triggerAt
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return null
+  const year = Number(dueDate.slice(0, 4))
+  const month = Number(dueDate.slice(5, 7))
+  const day = Number(dueDate.slice(8, 10))
+  const triggerAt = new Date(year, month - 1, day, REMINDER_HOUR, 0, 0, 0)
+  if (
+    triggerAt.getFullYear() !== year ||
+    triggerAt.getMonth() !== month - 1 ||
+    triggerAt.getDate() !== day
+  ) {
+    return null
+  }
+  triggerAt.setDate(triggerAt.getDate() - daysBefore)
+  return triggerAt
 }
 
 const getAllReminders = (data: PlannerData, projectId: string): DeadlineReminder[] =>
   data.sections.flatMap((section) =>
     section.items.flatMap((item) => {
-      if (!item.dueDate || item.checked) return []
+      const dueDate = item.dueDate
+      if (!dueDate || item.checked) return []
       return REMINDER_DAYS.flatMap((daysBefore) => {
-        const triggerAt = getReminderDate(item.dueDate!, daysBefore)
+        const triggerAt = getReminderDate(dueDate, daysBefore)
         if (!triggerAt) return []
         return [
           {
-            id: `${projectId}:${item.id}:${item.dueDate}:${daysBefore}`,
+            id: `${projectId}:${item.id}:${dueDate}:${daysBefore}`,
             itemId: item.id,
             title: item.title,
             sectionTitle: section.title,
-            dueDate: item.dueDate!,
+            dueDate,
             daysBefore,
             triggerAt,
           },

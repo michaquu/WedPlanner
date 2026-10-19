@@ -20,22 +20,35 @@ export interface PlannerItemWithSection {
 export const normalizePlannerData = (input?: PlannerData): PlannerData => {
   const source = input ?? createSeedData()
   return {
-    sections: (source.sections ?? []).map((section) => ({
+    sections: (Array.isArray(source.sections) ? source.sections : []).map((section) => ({
       ...section,
-      items: (section.items ?? []).map((item) => ({
-        ...item,
-        favorite: item.favorite ?? false,
-        cost: item.cost ?? undefined,
-        costPaid: item.costPaid ?? false,
-        notes: item.notes ?? [],
-      })),
+      items: (Array.isArray(section.items) ? section.items : []).map((item) => {
+        const checked = item.checked ?? item.status === 'Zrobione'
+        const status = checked
+          ? 'Zrobione'
+          : item.status === 'W trakcie'
+            ? 'W trakcie'
+            : 'Do zrobienia'
+        return {
+          ...item,
+          checked,
+          favorite: item.favorite ?? false,
+          status,
+          cost: item.cost ?? undefined,
+          costPaid: item.costPaid ?? false,
+          notes: Array.isArray(item.notes) ? item.notes : [],
+        }
+      }),
     })),
   }
 }
 
 export const orderByIds = <T extends { id: string }>(items: T[], order: string[]) => {
   if (!order.length) return items
-  const positions = new Map(order.map((id, index) => [id, index]))
+  const positions = new Map<string, number>()
+  order.forEach((id, index) => {
+    if (!positions.has(id)) positions.set(id, index)
+  })
   return [...items].sort((left, right) => {
     const leftPosition = positions.get(left.id) ?? Number.MAX_SAFE_INTEGER
     const rightPosition = positions.get(right.id) ?? Number.MAX_SAFE_INTEGER
@@ -43,9 +56,26 @@ export const orderByIds = <T extends { id: string }>(items: T[], order: string[]
   })
 }
 
+export const reconcileOrder = (ids: string[], order: string[]) => {
+  const availableIds = new Set(ids)
+  const includedIds = new Set<string>()
+  const validOrder = order.filter((id) => {
+    if (!availableIds.has(id) || includedIds.has(id)) return false
+    includedIds.add(id)
+    return true
+  })
+  ids.forEach((id) => {
+    if (!includedIds.has(id)) {
+      validOrder.push(id)
+      includedIds.add(id)
+    }
+  })
+  return validOrder
+}
+
 export const getEffectiveSectionOrder = (sections: Section[], order: string[]) => {
   const ids = sections.map((section) => section.id)
-  return [...order.filter((id) => ids.includes(id)), ...ids.filter((id) => !order.includes(id))]
+  return reconcileOrder(ids, order)
 }
 
 export const getEffectiveItemOrder = (
@@ -56,10 +86,7 @@ export const getEffectiveItemOrder = (
     sections.map((section) => {
       const ids = section.items.map((item) => item.id)
       const current = itemOrder[section.id] ?? []
-      return [
-        section.id,
-        [...current.filter((id) => ids.includes(id)), ...ids.filter((id) => !current.includes(id))],
-      ]
+      return [section.id, reconcileOrder(ids, current)]
     }),
   )
 
@@ -72,6 +99,15 @@ export const orderSectionsWithItems = (
     ...section,
     items: orderByIds(section.items, itemOrder[section.id] ?? []),
   }))
+
+export const findPlannerItem = (sections: Section[], itemId: string | null) => {
+  if (!itemId) return null
+  for (const section of sections) {
+    const item = section.items.find((entry) => entry.id === itemId)
+    if (item) return { item, sectionId: section.id }
+  }
+  return null
+}
 
 const compareOptionalValues = <T>(
   left: T | undefined,

@@ -27,15 +27,6 @@ export interface DashboardMetrics {
   maxSectionCost: number
 }
 
-export const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pl-PL', {
-    style: 'currency',
-    currency: 'PLN',
-    maximumFractionDigits: 2,
-  })
-    .format(value)
-    .replace(/[\u00a0\u202f]/g, ' ')
-
 const getLocalDate = () => new Intl.DateTimeFormat('sv-SE').format(new Date())
 
 export const getDashboardMetrics = (data: PlannerData): DashboardMetrics => {

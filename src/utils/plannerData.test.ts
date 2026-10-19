@@ -3,12 +3,14 @@ import type { PlannerData } from '../types'
 import { createItem, createPlannerData, createSection } from '../test/fixtures'
 import {
   filterSections,
+  findPlannerItem,
   getEffectiveItemOrder,
   getEffectiveSectionOrder,
   getPlannerSummary,
   normalizePlannerData,
   orderByIds,
   orderSectionsWithItems,
+  reconcileOrder,
   sortPlannerItems,
 } from './plannerData'
 
@@ -21,10 +23,36 @@ describe('planner data utilities', () => {
     const normalized = normalizePlannerData(legacyData)
 
     expect(normalized.sections[0]?.items[0]).toMatchObject({
+      checked: false,
       favorite: false,
+      status: 'Do zrobienia',
       costPaid: false,
       notes: [],
     })
+  })
+
+  it('repairs inconsistent completion state and invalid nested collections', () => {
+    const inconsistentData = {
+      sections: [
+        {
+          id: 'section',
+          title: 'Section',
+          items: [
+            { id: 'done', title: 'Done', checked: true, status: 'W trakcie', notes: null },
+          ],
+        },
+        { id: 'empty', title: 'Empty', items: null },
+      ],
+    } as unknown as PlannerData
+
+    const normalized = normalizePlannerData(inconsistentData)
+
+    expect(normalized.sections[0]?.items[0]).toMatchObject({
+      checked: true,
+      status: 'Zrobione',
+      notes: [],
+    })
+    expect(normalized.sections[1]?.items).toEqual([])
   })
 
   it('orders known IDs and keeps new entries at the end', () => {
@@ -38,13 +66,28 @@ describe('planner data utilities', () => {
       createSection({ id: 'b', items: [createItem({ id: 'b1' })] }),
     ]
 
-    expect(getEffectiveSectionOrder(sections, ['b', 'missing'])).toEqual(['b', 'a'])
-    expect(getEffectiveItemOrder(sections, { a: ['a2', 'missing'] })).toEqual({
+    expect(getEffectiveSectionOrder(sections, ['b', 'missing', 'b'])).toEqual(['b', 'a'])
+    expect(getEffectiveItemOrder(sections, { a: ['a2', 'missing', 'a2'] })).toEqual({
       a: ['a2', 'a1'],
       b: ['b1'],
     })
     expect(orderSectionsWithItems(sections, ['b', 'a'], { a: ['a2', 'a1'] })[1]?.items[0]?.id)
       .toBe('a2')
+    expect(reconcileOrder(['a', 'b', 'a'], ['missing', 'b', 'b'])).toEqual(['b', 'a'])
+  })
+
+  it('finds an item together with its parent section', () => {
+    const sections = [
+      createSection({ id: 'first', items: [] }),
+      createSection({ id: 'second', items: [createItem({ id: 'target' })] }),
+    ]
+
+    expect(findPlannerItem(sections, 'target')).toMatchObject({
+      sectionId: 'second',
+      item: { id: 'target' },
+    })
+    expect(findPlannerItem(sections, 'missing')).toBeNull()
+    expect(findPlannerItem(sections, null)).toBeNull()
   })
 
   it('searches textual notes but ignores encoded image contents', () => {

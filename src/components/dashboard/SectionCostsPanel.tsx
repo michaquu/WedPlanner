@@ -1,6 +1,6 @@
 import { Box, LinearProgress, Paper, Stack, Typography } from '@mui/material'
 import type { DashboardSection } from '../../utils/dashboard'
-import { formatCurrency } from '../../utils/dashboard'
+import { formatCurrency } from '../../utils/formatters'
 
 interface SectionCostsPanelProps {
   sections: DashboardSection[]

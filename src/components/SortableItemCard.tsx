@@ -7,7 +7,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Item } from '../types'
 import StyledCheckbox from '../utils/components/StyledCheckbox'
-
+import { formatCurrency } from '../utils/formatters'
 
 interface SortableItemCardProps {
   item: Item
@@ -27,7 +27,7 @@ const formatDate = (value?: string) => {
 
 const formatCost = (value?: number) => {
   if (value === undefined) return 'Brak'
-  return `${value} zl`
+  return formatCurrency(value)
 }
 
 const statusColor = (status: Item['status']) => {
@@ -40,7 +40,6 @@ const statusColor = (status: Item['status']) => {
       return 'default'
   }
 }
-
 
 const SortableItemCard = ({
   item,

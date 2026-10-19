@@ -1,113 +1,106 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react'
 import { v4 as uuid } from 'uuid'
 import type { Item, Note, PlannerData } from '../types'
-
-type ItemUpdater = (item: Item) => Partial<Item>
+import {
+  appendPlannerItem,
+  createPlannerItem,
+  prependItemNote,
+  removeItemNote,
+  removePlannerItem,
+  removePlannerSection,
+  synchronizeItemCompletion,
+  updatePlannerItem,
+} from '../utils/plannerMutations'
 
 export const usePlannerActions = (setData: Dispatch<SetStateAction<PlannerData>>) => {
-  const mutateItem = (sectionId: string, itemId: string, updater: ItemUpdater) => {
-    setData((current) => ({
-      sections: current.sections.map((section) =>
-        section.id === sectionId
-          ? {
-              ...section,
-              items: section.items.map((item) =>
-                item.id === itemId ? { ...item, ...updater(item) } : item,
-              ),
-            }
-          : section,
-      ),
-    }))
-  }
+  const mutateItem = useCallback(
+    (sectionId: string, itemId: string, updater: (item: Item) => Partial<Item>) => {
+      setData((current) => updatePlannerItem(current, sectionId, itemId, updater))
+    },
+    [setData],
+  )
 
-  const updateItem = (sectionId: string, itemId: string, changes: Partial<Item>) =>
-    mutateItem(sectionId, itemId, () => {
-      if (changes.checked !== undefined) {
+  const updateItem = useCallback(
+    (sectionId: string, itemId: string, changes: Partial<Item>) =>
+      mutateItem(sectionId, itemId, () => synchronizeItemCompletion(changes)),
+    [mutateItem],
+  )
+
+  const toggleItem = useCallback(
+    (sectionId: string, itemId: string) =>
+      mutateItem(sectionId, itemId, (item) => {
+        const checked = !item.checked
         return {
-          ...changes,
-          status: changes.checked ? 'Zrobione' : 'Do zrobienia',
+          checked,
+          status: checked ? 'Zrobione' : 'Do zrobienia',
         }
-      }
-      if (changes.status !== undefined) {
-        return {
-          ...changes,
-          checked: changes.status === 'Zrobione',
-        }
-      }
-      return changes
-    })
+      }),
+    [mutateItem],
+  )
 
-  const toggleItem = (sectionId: string, itemId: string) =>
-    mutateItem(sectionId, itemId, (item) => {
-      const checked = !item.checked
-      return {
-        checked,
-        status: checked ? 'Zrobione' : 'Do zrobienia',
-      }
-    })
+  const toggleFavorite = useCallback(
+    (sectionId: string, itemId: string) =>
+      mutateItem(sectionId, itemId, (item) => ({ favorite: !item.favorite })),
+    [mutateItem],
+  )
 
-  const toggleFavorite = (sectionId: string, itemId: string) =>
-    mutateItem(sectionId, itemId, (item) => ({ favorite: !item.favorite }))
+  const addNote = useCallback(
+    (sectionId: string, itemId: string, note: Note) =>
+      mutateItem(sectionId, itemId, (item) => prependItemNote(item, note)),
+    [mutateItem],
+  )
 
-  const addNote = (sectionId: string, itemId: string, note: Note) =>
-    mutateItem(sectionId, itemId, (item) => ({ notes: [note, ...item.notes] }))
+  const removeNote = useCallback(
+    (sectionId: string, itemId: string, noteId: string) =>
+      mutateItem(sectionId, itemId, (item) => removeItemNote(item, noteId)),
+    [mutateItem],
+  )
 
-  const removeNote = (sectionId: string, itemId: string, noteId: string) =>
-    mutateItem(sectionId, itemId, (item) => ({
-      notes: item.notes.filter((note) => note.id !== noteId),
-    }))
+  const addItem = useCallback(
+    (sectionId: string, title: string) => {
+      const value = title.trim()
+      if (!value) return
+      setData((current) =>
+        appendPlannerItem(current, sectionId, createPlannerItem(uuid(), value)),
+      )
+    },
+    [setData],
+  )
 
-  const addItem = (sectionId: string, title: string) => {
-    const value = title.trim()
-    if (!value) return
-    setData((current) => ({
-      sections: current.sections.map((section) =>
-        section.id === sectionId
-          ? {
-              ...section,
-              items: [
-                ...section.items,
-                {
-                  id: uuid(),
-                  title: value,
-                  checked: false,
-                  favorite: false,
-                  status: 'Do zrobienia',
-                  dueDate: '',
-                  costPaid: false,
-                  notes: [],
-                },
-              ],
-            }
-          : section,
-      ),
-    }))
-  }
+  const deleteItem = useCallback(
+    (sectionId: string, itemId: string) => {
+      setData((current) => removePlannerItem(current, sectionId, itemId))
+    },
+    [setData],
+  )
 
-  const deleteItem = (sectionId: string, itemId: string) => {
-    setData((current) => ({
-      sections: current.sections.map((section) =>
-        section.id === sectionId
-          ? { ...section, items: section.items.filter((item) => item.id !== itemId) }
-          : section,
-      ),
-    }))
-  }
+  const deleteSection = useCallback(
+    (sectionId: string) => {
+      setData((current) => removePlannerSection(current, sectionId))
+    },
+    [setData],
+  )
 
-  const deleteSection = (sectionId: string) => {
-    setData((current) => ({
-      sections: current.sections.filter((section) => section.id !== sectionId),
-    }))
-  }
-
-  return {
-    updateItem,
-    toggleItem,
-    toggleFavorite,
-    addNote,
-    removeNote,
-    addItem,
-    deleteItem,
-    deleteSection,
-  }
+  return useMemo(
+    () => ({
+      updateItem,
+      toggleItem,
+      toggleFavorite,
+      addNote,
+      removeNote,
+      addItem,
+      deleteItem,
+      deleteSection,
+    }),
+    [
+      addItem,
+      addNote,
+      deleteItem,
+      deleteSection,
+      removeNote,
+      toggleFavorite,
+      toggleItem,
+      updateItem,
+    ],
+  )
 }

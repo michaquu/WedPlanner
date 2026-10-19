@@ -3,10 +3,18 @@ import { STORAGE_KEYS } from '../constants'
 import type { PlannerData } from '../types'
 import { getDueReminders, getNextReminderTime, type DeadlineReminder } from '../utils/notifications'
 import { readStorage, writeStorage } from '../utils/storage'
+import { savePushSubscription } from '../utils/firebaseProjects'
 
 export type DeadlineNotificationStatus = NotificationPermission | 'unsupported'
 
 const pendingReminders = new Set<string>()
+
+const urlBase64ToUint8Array = (value: string) => {
+  const padding = '='.repeat((4 - (value.length % 4)) % 4)
+  const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = window.atob(base64)
+  return Uint8Array.from([...raw].map((character) => character.charCodeAt(0)))
+}
 
 const getStatus = (): DeadlineNotificationStatus =>
   typeof window !== 'undefined' && 'Notification' in window
@@ -40,8 +48,20 @@ export const useDeadlineNotifications = (data: PlannerData, projectId: string) =
     if (!('Notification' in window)) return 'unsupported' as const
     const permission = await Notification.requestPermission()
     setStatus(permission)
+    if (permission === 'granted' && 'serviceWorker' in navigator && projectId) {
+      const registration = await navigator.serviceWorker.ready
+      const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+      if (publicKey && 'pushManager' in registration) {
+        const existing = await registration.pushManager.getSubscription()
+        const subscription = existing ?? await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        })
+        await savePushSubscription(projectId, subscription.toJSON())
+      }
+    }
     return permission
-  }, [])
+  }, [projectId])
 
   useEffect(() => {
     const refreshStatus = () => setStatus(getStatus())

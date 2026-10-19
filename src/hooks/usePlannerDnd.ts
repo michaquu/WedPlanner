@@ -9,8 +9,11 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import type { PlannerData, Section } from '../types'
+import { moveItemBetweenSections, moveItemInOrder, type ItemMove } from '../utils/plannerDnd'
 
 type DragType = 'section' | 'item'
+
+const isDragType = (value: unknown): value is DragType => value === 'section' || value === 'item'
 
 interface UsePlannerDndOptions {
   data: PlannerData
@@ -42,7 +45,8 @@ export const usePlannerDnd = ({
   }
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveType((event.active.data.current?.type as DragType | undefined) ?? null)
+    const type = event.active.data.current?.type
+    setActiveType(isDragType(type) ? type : null)
     setActiveId(String(event.active.id))
   }
 
@@ -60,65 +64,38 @@ export const usePlannerDnd = ({
   const moveItem = (event: DragEndEvent) => {
     const { active, over } = event
     if (!over) return
-    const sourceSectionId = active.data.current?.sectionId as string
+    const activeId = String(active.id)
+    const overId = String(over.id)
+    const sourceSectionId = active.data.current?.sectionId
+    if (typeof sourceSectionId !== 'string') return
     const overType = over.data.current?.type
     let targetSectionId = sourceSectionId
     let targetIndex = -1
 
     if (overType === 'item') {
       const targetSection = orderedSections.find((section) =>
-        section.items.some((item) => item.id === over.id),
+        section.items.some((item) => item.id === overId),
       )
       targetSectionId = targetSection?.id ?? sourceSectionId
-      targetIndex = targetSection?.items.findIndex((item) => item.id === over.id) ?? -1
+      targetIndex = targetSection?.items.findIndex((item) => item.id === overId) ?? -1
     } else if (overType === 'section-drop') {
-      targetSectionId = over.data.current?.sectionId as string
+      const sectionId = over.data.current?.sectionId
+      if (typeof sectionId === 'string') targetSectionId = sectionId
     }
 
     const sourceSection = orderedSections.find((section) => section.id === sourceSectionId)
-    const sourceItems = sourceSection?.items ?? []
-    const sourceIndex = sourceItems.findIndex((item) => item.id === active.id)
-    if (sourceIndex < 0) return
+    if (!sourceSection?.items.some((item) => item.id === activeId)) return
 
-    if (sourceSectionId === targetSectionId) {
-      if (targetIndex >= 0) {
-        setItemOrder((current) => ({
-          ...current,
-          [sourceSectionId]: arrayMove(
-            sourceItems.map((item) => item.id),
-            sourceIndex,
-            targetIndex,
-          ),
-        }))
-      }
-      return
+    const move: ItemMove = {
+      itemId: activeId,
+      sourceSectionId,
+      targetSectionId,
+      targetIndex,
     }
-
-    setData((current) => {
-      const sections = current.sections.map((section) => ({
-        ...section,
-        items: [...section.items],
-      }))
-      const source = sections.find((section) => section.id === sourceSectionId)
-      const target = sections.find((section) => section.id === targetSectionId)
-      if (!source || !target) return current
-      const currentSourceIndex = source.items.findIndex((item) => item.id === active.id)
-      if (currentSourceIndex < 0) return current
-      const [moved] = source.items.splice(currentSourceIndex, 1)
-      target.items.splice(targetIndex >= 0 ? targetIndex : target.items.length, 0, moved)
-      return { sections }
-    })
-
-    setItemOrder((current) => {
-      const sourceOrder = (current[sourceSectionId] ?? sourceItems.map((item) => item.id)).filter(
-        (id) => id !== active.id,
-      )
-      const targetItems =
-        orderedSections.find((section) => section.id === targetSectionId)?.items ?? []
-      const targetOrder = [...(current[targetSectionId] ?? targetItems.map((item) => item.id))]
-      targetOrder.splice(targetIndex >= 0 ? targetIndex : targetOrder.length, 0, String(active.id))
-      return { ...current, [sourceSectionId]: sourceOrder, [targetSectionId]: targetOrder }
-    })
+    setItemOrder((current) => moveItemInOrder(current, orderedSections, move))
+    if (sourceSectionId !== targetSectionId) {
+      setData((current) => moveItemBetweenSections(current, move))
+    }
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -137,4 +114,3 @@ export const usePlannerDnd = ({
     handleDragCancel: clearActive,
   }
 }
-

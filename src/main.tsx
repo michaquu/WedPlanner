@@ -5,7 +5,10 @@ import './index.css'
 import App from './App.tsx'
 import theme from './theme'
 
-createRoot(document.getElementById('root')!).render(
+const rootElement = document.getElementById('root')
+if (!rootElement) throw new Error('Nie znaleziono elementu #root aplikacji.')
+
+createRoot(rootElement).render(
   <StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />

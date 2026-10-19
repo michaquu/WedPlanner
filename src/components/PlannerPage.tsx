@@ -22,6 +22,7 @@ import { usePlannerDnd } from '../hooks/usePlannerDnd'
 import { useStoredState } from '../hooks/useStoredState'
 import {
   filterSections,
+  findPlannerItem,
   orderSectionsWithItems,
   sortPlannerItems,
   type PlannerSort,
@@ -96,13 +97,7 @@ const PlannerPage = ({
     (total, section) => total + section.items.length,
     0,
   )
-  const selectedItem = data.sections.reduce<
-    { item: (typeof data.sections)[number]['items'][number]; sectionId: string } | null
-  >((found, section) => {
-    if (found || !selectedItemId) return found
-    const item = section.items.find((entry) => entry.id === selectedItemId)
-    return item ? { item, sectionId: section.id } : null
-  }, null)
+  const selectedItem = findPlannerItem(data.sections, selectedItemId)
   const dnd = usePlannerDnd({
     data,
     orderedSections,

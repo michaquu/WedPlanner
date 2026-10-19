@@ -38,4 +38,18 @@ describe('deadline notifications', () => {
       new Date(2026, 7, 7, 11, 0).getTime(),
     )
   })
+
+  it('ignores malformed and impossible deadline dates', () => {
+    const data = createPlannerData([
+      createSection({
+        items: [
+          createItem({ id: 'invalid-format', dueDate: '13-08-2026' }),
+          createItem({ id: 'invalid-day', dueDate: '2026-02-31' }),
+        ],
+      }),
+    ])
+
+    expect(getDueReminders(data, 'project')).toEqual([])
+    expect(getNextReminderTime(data, 'project')).toBeUndefined()
+  })
 })

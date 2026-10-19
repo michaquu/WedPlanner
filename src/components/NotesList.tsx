@@ -2,6 +2,7 @@ import { Box, Button, Chip, IconButton, Stack, Typography } from '@mui/material'
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import type { Note } from '../types'
+import { formatFileSize } from '../utils/formatters'
 
 interface NotesListProps {
   notes?: Note[]
@@ -9,13 +10,6 @@ interface NotesListProps {
 }
 
 const NotesList = ({ notes = [], onRemove }: NotesListProps) => {
-  const formatSize = (size?: number) => {
-    if (!size) return ''
-    if (size < 1024) return `${size} B`
-    if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`
-    return `${Math.round(size / (1024 * 1024))} MB`
-  }
-
   if (!notes.length) {
     return (
       <Typography variant="body2" color="text.secondary">
@@ -76,7 +70,7 @@ const NotesList = ({ notes = [], onRemove }: NotesListProps) => {
                 {note.fileName ?? 'Zalacznik'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {[note.mimeType, formatSize(note.size)].filter(Boolean).join(' · ')}
+                {[note.mimeType, formatFileSize(note.size)].filter(Boolean).join(' · ')}
               </Typography>
               <Button
                 variant="outlined"

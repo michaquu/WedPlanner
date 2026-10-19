@@ -22,6 +22,7 @@ import {
   getPlannerSummary,
   orderByIds,
 } from './utils/plannerData'
+import { appendPlannerSection } from './utils/plannerMutations'
 
 type AppView = 'planner' | 'dashboard'
 
@@ -96,9 +97,9 @@ function App() {
   const handleAddSection = () => {
     const title = newSectionTitle.trim()
     if (!title) return
-    project.setData((current) => ({
-      sections: [...current.sections, { id: uuid(), title, items: [] }],
-    }))
+    project.setData((current) =>
+      appendPlannerSection(current, { id: uuid(), title, items: [] }),
+    )
     setNewSectionTitle('')
     setAddSectionOpen(false)
   }

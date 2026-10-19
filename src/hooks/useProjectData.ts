@@ -5,6 +5,7 @@ import { createSeedData } from '../data/seed'
 import type { PlannerData } from '../types'
 import {
   createProject,
+  saveReminderProjectIndex,
   saveProjectData,
   subscribeProject,
 } from '../utils/firebaseProjects'
@@ -27,7 +28,10 @@ export const useProjectData = () => {
     return subscribeProject(projectId, (payload) => {
       skipNextSave.current = true
       setProjectExists(payload.exists)
-      if (payload.exists) setData(normalizePlannerData(payload.data))
+      if (payload.exists) {
+        setData(normalizePlannerData(payload.data))
+        void saveReminderProjectIndex(projectId).catch(() => undefined)
+      }
       setIsLoading(false)
     })
   }, [projectId])
@@ -76,6 +80,7 @@ export const useProjectData = () => {
     writeStorageText(STORAGE_KEYS.projectId, nextProjectId)
     try {
       await createProject(nextProjectId, seed)
+      await saveReminderProjectIndex(nextProjectId)
     } catch {
       setSaveError(true)
     }
