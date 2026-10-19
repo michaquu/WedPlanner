@@ -49,6 +49,7 @@ const getDateMinusDays = (dateText, days) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return null
   const date = new Date(`${dateText}T00:00:00Z`)
   if (Number.isNaN(date.getTime())) return null
+  if (date.toISOString().slice(0, 10) !== dateText) return null
   date.setUTCDate(date.getUTCDate() - days)
   return date.toISOString().slice(0, 10)
 }
@@ -125,7 +126,10 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
     const isTask = reminder.reminderKey.startsWith('task:')
     const reminderDate = reminder.reminderAt ?? ''
     const dueNow = isTask
-      ? reminderDate === currentWarsawDate && currentWarsawHour >= 11 && !reminder.item.checked
+      ? Boolean(reminderDate) &&
+        reminderDate <= currentWarsawDate &&
+        currentWarsawHour >= 11 &&
+        !reminder.item.checked
       : Number.isFinite(Date.parse(reminderDate)) && Date.parse(reminderDate) <= now
     if (!dueNow) continue
 
@@ -142,7 +146,9 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
       continue
     }
 
-    const targetUrl = `${appUrl}/?projectId=${encodeURIComponent(projectId)}&itemId=${encodeURIComponent(reminder.item.id)}&noteId=${encodeURIComponent(isTask ? '' : reminder.sourceId)}`
+    const targetUrl = isTask
+      ? `${appUrl}/?projectId=${encodeURIComponent(projectId)}&taskId=${encodeURIComponent(reminder.item.id)}`
+      : `${appUrl}/?projectId=${encodeURIComponent(projectId)}&itemId=${encodeURIComponent(reminder.item.id)}&noteId=${encodeURIComponent(reminder.sourceId)}`
     const payload = JSON.stringify({
       title: reminder.title,
       body: reminder.body,
@@ -153,6 +159,7 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
         projectId,
         itemId: reminder.item.id,
         noteId: isTask ? null : reminder.sourceId,
+        taskId: isTask ? reminder.item.id : null,
       },
     })
     console.log(`Notification target: ${targetUrl}`)

@@ -9,7 +9,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['icons/pwa-192.png', 'icons/pwa-512.png'],
       manifest: {
         name: 'N&M Wedding Planner',

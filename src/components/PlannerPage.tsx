@@ -136,7 +136,8 @@ const PlannerPage = ({
   }, [navigateSectionId, onNavigateHandled, setExpandedSections, sort])
 
   useEffect(() => {
-    const itemId = new URLSearchParams(window.location.search).get('itemId')
+    const params = new URLSearchParams(window.location.search)
+    const itemId = params.get('itemId') ?? params.get('taskId')
     if (!itemId || !data.sections.some((section) => section.items.some((item) => item.id === itemId))) {
       return
     }
@@ -157,7 +158,8 @@ const PlannerPage = ({
 
   useEffect(() => {
     const handlePopState = () => {
-      const itemId = new URLSearchParams(window.location.search).get('itemId')
+      const params = new URLSearchParams(window.location.search)
+      const itemId = params.get('itemId') ?? params.get('taskId')
       setSelectedItemId(itemId)
     }
     window.addEventListener('popstate', handlePopState)
@@ -181,6 +183,7 @@ const PlannerPage = ({
     setSelectedItemId(itemId)
     const params = new URLSearchParams(window.location.search)
     params.set('itemId', itemId)
+    params.delete('taskId')
     params.delete('noteId')
     window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`)
   }
@@ -189,6 +192,7 @@ const PlannerPage = ({
     setSelectedItemId(null)
     const params = new URLSearchParams(window.location.search)
     params.delete('itemId')
+    params.delete('taskId')
     params.delete('noteId')
     const query = params.toString()
     window.history.pushState({}, '', query ? `${window.location.pathname}?${query}` : window.location.pathname)
