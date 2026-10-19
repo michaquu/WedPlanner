@@ -7,6 +7,7 @@ const vapidPublicKey = process.env.VAPID_PUBLIC_KEY
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY
 const vapidSubject = process.env.VAPID_SUBJECT ?? 'mailto:notifications@example.com'
 const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+const appUrl = (process.env.APP_URL ?? 'https://wedding-planner-nm.web.app').replace(/\/$/, '')
 
 if (!databaseUrl || !vapidPublicKey || !vapidPrivateKey || !serviceAccountJson) {
   throw new Error(
@@ -141,12 +142,20 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
       continue
     }
 
+    const targetUrl = `${appUrl}/?projectId=${encodeURIComponent(projectId)}&itemId=${encodeURIComponent(reminder.item.id)}&noteId=${encodeURIComponent(isTask ? '' : reminder.sourceId)}`
     const payload = JSON.stringify({
       title: reminder.title,
       body: reminder.body,
       tag: deliveryId,
-      url: `/?projectId=${encodeURIComponent(projectId)}&itemId=${encodeURIComponent(reminder.item.id)}&noteId=${encodeURIComponent(isTask ? '' : reminder.sourceId)}`,
+      url: targetUrl,
+      data: {
+        url: targetUrl,
+        projectId,
+        itemId: reminder.item.id,
+        noteId: isTask ? null : reminder.sourceId,
+      },
     })
+    console.log(`Notification target: ${targetUrl}`)
 
     let sentForReminder = 0
     for (const [subscriptionId, subscription] of projectSubscriptions) {

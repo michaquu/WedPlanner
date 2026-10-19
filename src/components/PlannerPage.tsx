@@ -151,10 +151,18 @@ const PlannerPage = ({
           })
         }, 100)
       }
-      window.history.replaceState({}, '', window.location.pathname)
     }, 0)
     return () => window.clearTimeout(timeout)
   }, [data.sections])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const itemId = new URLSearchParams(window.location.search).get('itemId')
+      setSelectedItemId(itemId)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const requestItemDeletion = (sectionId: string, itemId: string) => {
     const item = data.sections
@@ -171,9 +179,20 @@ const PlannerPage = ({
   const handleOpenItem = (itemId: string) => {
     listScrollPosition.current = window.scrollY
     setSelectedItemId(itemId)
+    const params = new URLSearchParams(window.location.search)
+    params.set('itemId', itemId)
+    params.delete('noteId')
+    window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`)
   }
 
-  const handleBackToPlanner = () => setSelectedItemId(null)
+  const handleBackToPlanner = () => {
+    setSelectedItemId(null)
+    const params = new URLSearchParams(window.location.search)
+    params.delete('itemId')
+    params.delete('noteId')
+    const query = params.toString()
+    window.history.pushState({}, '', query ? `${window.location.pathname}?${query}` : window.location.pathname)
+  }
 
   const handleConfirmDelete = () => {
     if (!deleteTarget) return

@@ -18,14 +18,18 @@ self.addEventListener('push', (event) => {
     body?: string
     tag?: string
     url?: string
+    data?: {
+      url?: string
+    }
   }
+  const notificationUrl = payload.data?.url ?? payload.url ?? '/'
   event.waitUntil(
     self.registration.showNotification(payload.title ?? 'Wedding Planner', {
       body: payload.body ?? 'Masz nowe przypomnienie.',
       icon: '/icons/pwa-192.png',
       badge: '/icons/pwa-192.png',
       tag: payload.tag,
-      data: { url: payload.url ?? '/' },
+      data: { url: notificationUrl },
     }),
   )
 })
@@ -33,15 +37,8 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const url = event.notification.data?.url ?? '/'
+  const targetUrl = new URL(url, self.location.origin).href
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      const existing = clients.find(
-        (client): client is WindowClient => 'focus' in client && 'navigate' in client,
-      )
-      if (existing) {
-        return existing.navigate(url).then((client) => client?.focus())
-      }
-      return self.clients.openWindow(url)
-    }),
+    self.clients.openWindow(targetUrl),
   )
 })
