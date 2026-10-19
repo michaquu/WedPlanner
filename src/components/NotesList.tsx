@@ -101,13 +101,15 @@ const NotesList = ({ notes = [], onRemove, onUpdate }: NotesListProps) => {
                 <DownloadRoundedIcon fontSize="small" />
               </IconButton>
             )}
-            <IconButton
-              size="small"
-              onClick={() => openEditor(note)}
-              aria-label="Edytuj notatke"
-            >
-              <EditOutlinedIcon fontSize="small" />
-            </IconButton>
+            {(note.type === 'text' || note.type === 'link') && (
+              <IconButton
+                size="small"
+                onClick={() => openEditor(note)}
+                aria-label="Edytuj notatke"
+              >
+                <EditOutlinedIcon fontSize="small" />
+              </IconButton>
+            )}
             <IconButton size="small" onClick={() => onRemove(note.id)}>
               <DeleteOutlineOutlinedIcon fontSize="small" />
             </IconButton>

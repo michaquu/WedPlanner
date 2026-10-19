@@ -23,22 +23,36 @@ const app = getApps()[0] ?? initializeApp({
 const database = getDatabase(app)
 webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
 
+const withTimeout = (promise, label, timeoutMs = 30_000) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs)
+    }),
+  ])
+
 const asArray = (value) => (Array.isArray(value) ? value : Object.values(value ?? {}))
 const now = Date.now()
+console.log('Reading reminder data from Firebase...')
 const [reminderProjects, subscriptions, deliveries] = await Promise.all([
-  database.ref('reminderProjects').once('value'),
-  database.ref('pushSubscriptions').once('value'),
-  database.ref('pushDeliveries').once('value'),
+  withTimeout(database.ref('reminderProjects').once('value'), 'reminderProjects read'),
+  withTimeout(database.ref('pushSubscriptions').once('value'), 'pushSubscriptions read'),
+  withTimeout(database.ref('pushDeliveries').once('value'), 'pushDeliveries read'),
 ])
 
 const projectIndex = reminderProjects.val() ?? {}
 const subscriptionIndex = subscriptions.val() ?? {}
 const deliveryIndex = deliveries.val() ?? {}
+console.log(`Found ${Object.keys(projectIndex).length} reminder project(s).`)
 
 for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
   if (indexEntry?.active !== true) continue
 
-  const projectSnapshot = await database.ref(`projects/${projectId}`).once('value')
+  console.log(`Checking project ${projectId}...`)
+  const projectSnapshot = await withTimeout(
+    database.ref(`projects/${projectId}`).once('value'),
+    `project ${projectId} read`,
+  )
   const project = projectSnapshot.val()
   const notes = asArray(project?.data?.sections).flatMap((section) =>
     asArray(section?.items).flatMap((item) =>
@@ -64,16 +78,29 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
 
     for (const [subscriptionId, subscription] of projectSubscriptions) {
       try {
-        await webpush.sendNotification(subscription, payload)
+        await withTimeout(
+          webpush.sendNotification(subscription, payload, { timeout: 15_000 }),
+          `push ${projectId}/${subscriptionId}`,
+          20_000,
+        )
+        console.log(`Sent reminder ${deliveryId} to subscription ${subscriptionId}.`)
       } catch (error) {
         if (error?.statusCode === 404 || error?.statusCode === 410) {
-          await database.ref(`pushSubscriptions/${projectId}/${subscriptionId}`).remove()
+          await withTimeout(
+            database.ref(`pushSubscriptions/${projectId}/${subscriptionId}`).remove(),
+            `remove subscription ${subscriptionId}`,
+          )
         } else {
           console.error(`Push failed for ${projectId}/${subscriptionId}`, error)
         }
       }
     }
 
-    await database.ref(`pushDeliveries/${projectId}/${deliveryId}`).set(new Date().toISOString())
+    await withTimeout(
+      database.ref(`pushDeliveries/${projectId}/${deliveryId}`).set(new Date().toISOString()),
+      `save delivery ${deliveryId}`,
+    )
   }
 }
+
+console.log('Reminder check completed.')
