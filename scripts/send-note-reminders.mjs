@@ -44,7 +44,32 @@ const withTimeout = (promise, label, timeoutMs = 30_000) =>
 const asArray = (value) => (Array.isArray(value) ? value : Object.values(value ?? {}))
 const toFirebaseKey = (value) =>
   Buffer.from(value, 'utf8').toString('base64url')
+const getDateMinusDays = (dateText, days) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return null
+  const date = new Date(`${dateText}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return null
+  date.setUTCDate(date.getUTCDate() - days)
+  return date.toISOString().slice(0, 10)
+}
+const getWarsawDateParts = (date) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Warsaw',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+  return Object.fromEntries(
+    parts
+      .filter(({ type }) => type !== 'literal')
+      .map(({ type, value }) => [type, value]),
+  )
+}
 const now = Date.now()
+const currentWarsaw = getWarsawDateParts(new Date(now))
+const currentWarsawDate = `${currentWarsaw.year}-${currentWarsaw.month}-${currentWarsaw.day}`
+const currentWarsawHour = Number(currentWarsaw.hour)
 const stats = { due: 0, sent: 0, failed: 0, alreadyDelivered: 0, noSubscription: 0 }
 console.log('Reading reminder data from Firebase...')
 const [reminderProjects, subscriptions, deliveries] = await Promise.all([
@@ -67,18 +92,43 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
     `project ${projectId} read`,
   )
   const project = projectSnapshot.val()
-  const notes = asArray(project?.data?.sections).flatMap((section) =>
+  const items = asArray(project?.data?.sections).flatMap((section) =>
     asArray(section?.items).flatMap((item) =>
-      asArray(item?.notes).map((note) => ({ section, item, note })),
+      [{ section, item }],
     ),
   )
   const projectSubscriptions = Object.entries(subscriptionIndex[projectId] ?? {})
 
-  for (const { section, item, note } of notes) {
-    const reminderAt = Date.parse(note?.reminderAt ?? '')
-    if (!Number.isFinite(reminderAt) || reminderAt > now) continue
+  const reminders = items.flatMap(({ section, item }) => [
+    ...asArray(item?.notes).map((note) => ({
+      section,
+      item,
+      title: `Przypomnienie: ${item.title}`,
+      body: `${section.title}${note.description ? ` · ${note.description.slice(0, 100)}` : ''}`,
+      sourceId: note.id,
+      reminderAt: note.reminderAt,
+      reminderKey: `note:${note.id}:${note.reminderAt}`,
+    })),
+    ...[7, 2].map((daysBefore) => ({
+      section,
+      item,
+      title: `Termin za ${daysBefore} dni: ${item.title}`,
+      body: `${section.title} · termin zadania: ${item.dueDate ?? ''}`,
+      sourceId: item.id,
+      reminderAt: getDateMinusDays(item.dueDate ?? '', daysBefore),
+      reminderKey: `task:${item.id}:${item.dueDate}:${daysBefore}`,
+    })),
+  ])
 
-    const deliveryId = `${projectId}:${note.id}:${note.reminderAt}`
+  for (const reminder of reminders) {
+    const isTask = reminder.reminderKey.startsWith('task:')
+    const reminderDate = reminder.reminderAt ?? ''
+    const dueNow = isTask
+      ? reminderDate === currentWarsawDate && currentWarsawHour >= 11 && !reminder.item.checked
+      : Number.isFinite(Date.parse(reminderDate)) && Date.parse(reminderDate) <= now
+    if (!dueNow) continue
+
+    const deliveryId = `${projectId}:${reminder.reminderKey}`
     const deliveryKey = toFirebaseKey(deliveryId)
     if (deliveryIndex[projectId]?.[deliveryKey]) {
       stats.alreadyDelivered += 1
@@ -92,10 +142,10 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
     }
 
     const payload = JSON.stringify({
-      title: `Przypomnienie: ${item.title}`,
-      body: `${section.title}${note.content ? ` · ${note.content.slice(0, 100)}` : ''}`,
+      title: reminder.title,
+      body: reminder.body,
       tag: deliveryId,
-      url: `/?projectId=${encodeURIComponent(projectId)}&itemId=${encodeURIComponent(item.id)}&noteId=${encodeURIComponent(note.id)}`,
+      url: `/?projectId=${encodeURIComponent(projectId)}&itemId=${encodeURIComponent(reminder.item.id)}&noteId=${encodeURIComponent(isTask ? '' : reminder.sourceId)}`,
     })
 
     let sentForReminder = 0

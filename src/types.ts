@@ -5,6 +5,7 @@ export interface Note {
   type: NoteType
   content: string
   createdAt: string
+  description?: string
   reminderAt?: string
   fileName?: string
   mimeType?: string

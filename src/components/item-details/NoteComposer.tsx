@@ -2,6 +2,7 @@ import { useMemo, useState, type ChangeEvent } from 'react'
 import {
   Alert,
   Button,
+  Box,
   FormControl,
   InputLabel,
   MenuItem,
@@ -37,6 +38,7 @@ const readFileAsDataUrl = (file: File) =>
 const NoteComposer = ({ onAdd }: NoteComposerProps) => {
   const [type, setType] = useState<NoteType>('text')
   const [text, setText] = useState('')
+  const [description, setDescription] = useState('')
   const [reminderAt, setReminderAt] = useState('')
   const [attachment, setAttachment] = useState<Attachment | null>(null)
   const [fileError, setFileError] = useState(false)
@@ -47,6 +49,7 @@ const NoteComposer = ({ onAdd }: NoteComposerProps) => {
 
   const resetContent = () => {
     setText('')
+    setDescription('')
     setReminderAt('')
     setAttachment(null)
     setFileError(false)
@@ -80,6 +83,9 @@ const NoteComposer = ({ onAdd }: NoteComposerProps) => {
       id: uuid(),
       type,
       createdAt: new Date().toISOString(),
+      ...(type !== 'text' && description.trim()
+        ? { description: description.trim() }
+        : {}),
       ...(reminderAt ? { reminderAt: new Date(reminderAt).toISOString() } : {}),
     }
     if (type === 'image' || type === 'file') {
@@ -96,20 +102,37 @@ const NoteComposer = ({ onAdd }: NoteComposerProps) => {
       <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
         Dodaj notatke
       </Typography>
-      <FormControl fullWidth>
-        <InputLabel>Typ</InputLabel>
-        <Select
-          label="Typ"
-          value={type}
-          onChange={(event) => handleTypeChange(event.target.value as NoteType)}
-        >
-          {NOTE_TYPES.map((noteType) => (
-            <MenuItem key={noteType} value={noteType}>
-              {noteType}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(92px, 0.72fr) minmax(0, 1.28fr)',
+          gap: 0.75,
+          width: '100%',
+        }}
+      >
+        <FormControl fullWidth>
+          <InputLabel>Typ</InputLabel>
+          <Select
+            label="Typ"
+            value={type}
+            onChange={(event) => handleTypeChange(event.target.value as NoteType)}
+          >
+            {NOTE_TYPES.map((noteType) => (
+              <MenuItem key={noteType} value={noteType}>
+                {noteType}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <TextField
+          label="Przypomnij"
+          type="datetime-local"
+          value={reminderAt}
+          onChange={(event) => setReminderAt(event.target.value)}
+          fullWidth
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+      </Box>
       {type === 'image' || type === 'file' ? (
         <Button variant="outlined" component="label">
           {type === 'image' ? 'Wybierz zdjecie' : 'Wybierz plik'}
@@ -130,14 +153,16 @@ const NoteComposer = ({ onAdd }: NoteComposerProps) => {
           rows={type === 'text' ? 3 : 1}
         />
       )}
-      <TextField
-        label="Przypomnij (opcjonalnie)"
-        type="datetime-local"
-        value={reminderAt}
-        onChange={(event) => setReminderAt(event.target.value)}
-        fullWidth
-        slotProps={{ inputLabel: { shrink: true } }}
-      />
+      {type !== 'text' && (
+        <TextField
+          label="Opis (opcjonalnie)"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          fullWidth
+          multiline
+          rows={2}
+        />
+      )}
       {attachment && (
         <Typography variant="caption" color="text.secondary">
           Wybrano: {attachment.fileName}

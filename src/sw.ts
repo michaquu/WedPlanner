@@ -35,12 +35,13 @@ self.addEventListener('notificationclick', (event) => {
   const url = event.notification.data?.url ?? '/'
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      const existing = clients.find((client) => 'focus' in client)
+      const existing = clients.find(
+        (client): client is WindowClient => 'focus' in client && 'navigate' in client,
+      )
       if (existing) {
-        void existing.focus()
-        return
+        return existing.navigate(url).then((client) => client?.focus())
       }
-      void self.clients.openWindow(url)
+      return self.clients.openWindow(url)
     }),
   )
 })

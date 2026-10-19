@@ -175,6 +175,11 @@ const NotesList = ({ notes = [], onRemove, onUpdate }: NotesListProps) => {
               {note.content}
             </Typography>
           )}
+          {note.type !== 'text' && note.description && (
+            <Typography variant="body2" color="text.secondary" sx={{ marginTop: 1 }}>
+              {note.description}
+            </Typography>
+          )}
           {formatReminder(note.reminderAt) && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', marginTop: 1 }}>
               Przypomnienie: {formatReminder(note.reminderAt)}

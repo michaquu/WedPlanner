@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Container, Snackbar } from '@mui/material'
+import {
+  Alert,
+  Button,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Snackbar,
+  Stack,
+  Typography,
+} from '@mui/material'
 import { v4 as uuid } from 'uuid'
 import packageJson from '../package.json'
 import './App.css'
@@ -29,7 +40,7 @@ type AppView = 'planner' | 'dashboard'
 function App() {
   const project = useProjectData()
   const { projectId, selectProject } = project
-  const deadlineNotifications = useDeadlineNotifications(project.data, project.projectId)
+  const deadlineNotifications = useDeadlineNotifications(project.projectId)
   const [activeView, setActiveView] = useState<AppView>('planner')
   const [searchQuery, setSearchQuery] = useState('')
   const [favoriteOnly, setFavoriteOnly] = useState(false)
@@ -52,6 +63,20 @@ function App() {
   const [newSectionTitle, setNewSectionTitle] = useState('')
   const [projectIdInput, setProjectIdInput] = useState('')
   const [navigateSectionId, setNavigateSectionId] = useState<string | null>(null)
+  const [notificationPromptSeen, setNotificationPromptSeen] = useStoredState(
+    STORAGE_KEYS.notificationPromptSeen,
+    false,
+  )
+
+  const notificationPromptOpen =
+    project.projectExists === true &&
+    deadlineNotifications.status === 'default' &&
+    !notificationPromptSeen
+
+  const handleEnableNotifications = async () => {
+    setNotificationPromptSeen(true)
+    await deadlineNotifications.requestPermission()
+  }
 
   useEffect(() => {
     const targetProjectId = new URLSearchParams(window.location.search).get('projectId')
@@ -187,8 +212,33 @@ function App() {
         onProjectIdInputChange={setProjectIdInput}
         onSelectProject={handleSelectProject}
         onCreateProject={project.createNewProject}
-        onEnableNotifications={deadlineNotifications.requestPermission}
+        onEnableNotifications={handleEnableNotifications}
       />
+      <Dialog
+        open={notificationPromptOpen}
+        onClose={() => setNotificationPromptSeen(true)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Wlacz powiadomienia?</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1}>
+            <Typography variant="body2">
+              Otrzymasz przypomnienia o terminach zadan oraz przypietych notatkach,
+              nawet gdy aplikacja bedzie zamknieta.
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Na iPhonie aplikacja musi byc dodana do ekranu poczatkowego.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNotificationPromptSeen(true)}>Nie teraz</Button>
+          <Button variant="contained" onClick={() => void handleEnableNotifications()}>
+            Wlacz powiadomienia
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Snackbar
         open={project.saveError}
         autoHideDuration={3000}

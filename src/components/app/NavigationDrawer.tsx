@@ -128,7 +128,7 @@ const NavigationDrawer = ({
           <Box>
             <Typography variant="subtitle2">Powiadomienia o terminach</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-              Przypomnienia 7 i 2 dni przed terminem o 11:00.
+              <b>Zadania:</b> 7 i 2 dni przed terminem o 11:00. <b>Przypiete notatki:</b> zgodnie z ustawiona data.
             </Typography>
             <Button
               size="small"
