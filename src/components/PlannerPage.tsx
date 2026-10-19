@@ -135,6 +135,27 @@ const PlannerPage = ({
     return () => window.clearTimeout(timeout)
   }, [navigateSectionId, onNavigateHandled, setExpandedSections, sort])
 
+  useEffect(() => {
+    const itemId = new URLSearchParams(window.location.search).get('itemId')
+    if (!itemId || !data.sections.some((section) => section.items.some((item) => item.id === itemId))) {
+      return
+    }
+    const timeout = window.setTimeout(() => {
+      setSelectedItemId(itemId)
+      const noteId = new URLSearchParams(window.location.search).get('noteId')
+      if (noteId) {
+        window.setTimeout(() => {
+          document.getElementById(`note-${noteId}`)?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          })
+        }, 100)
+      }
+      window.history.replaceState({}, '', window.location.pathname)
+    }, 0)
+    return () => window.clearTimeout(timeout)
+  }, [data.sections])
+
   const requestItemDeletion = (sectionId: string, itemId: string) => {
     const item = data.sections
       .find((section) => section.id === sectionId)
@@ -196,6 +217,9 @@ const PlannerPage = ({
         onAddNote={(note) => actions.addNote(selectedItem.sectionId, selectedItem.item.id, note)}
         onRemoveNote={(noteId) =>
           actions.removeNote(selectedItem.sectionId, selectedItem.item.id, noteId)
+        }
+        onUpdateNote={(noteId, changes) =>
+          actions.updateNote(selectedItem.sectionId, selectedItem.item.id, noteId, changes)
         }
       />
     )

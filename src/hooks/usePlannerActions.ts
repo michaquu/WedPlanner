@@ -10,6 +10,7 @@ import {
   removePlannerSection,
   synchronizeItemCompletion,
   updatePlannerItem,
+  updateItemNote,
 } from '../utils/plannerMutations'
 
 export const usePlannerActions = (setData: Dispatch<SetStateAction<PlannerData>>) => {
@@ -56,6 +57,12 @@ export const usePlannerActions = (setData: Dispatch<SetStateAction<PlannerData>>
     [mutateItem],
   )
 
+  const updateNote = useCallback(
+    (sectionId: string, itemId: string, noteId: string, changes: Partial<Note>) =>
+      mutateItem(sectionId, itemId, (item) => updateItemNote(item, noteId, changes)),
+    [mutateItem],
+  )
+
   const addItem = useCallback(
     (sectionId: string, title: string) => {
       const value = title.trim()
@@ -88,6 +95,7 @@ export const usePlannerActions = (setData: Dispatch<SetStateAction<PlannerData>>
       toggleFavorite,
       addNote,
       removeNote,
+      updateNote,
       addItem,
       deleteItem,
       deleteSection,
@@ -101,6 +109,7 @@ export const usePlannerActions = (setData: Dispatch<SetStateAction<PlannerData>>
       toggleFavorite,
       toggleItem,
       updateItem,
+      updateNote,
     ],
   )
 }

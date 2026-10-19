@@ -107,3 +107,11 @@ export const prependItemNote = (item: Item, note: Note): Partial<Item> => ({
 export const removeItemNote = (item: Item, noteId: string): Partial<Item> => ({
   notes: item.notes.filter((note) => note.id !== noteId),
 })
+
+export const updateItemNote = (
+  item: Item,
+  noteId: string,
+  changes: Partial<Note>,
+): Partial<Item> => ({
+  notes: item.notes.map((note) => (note.id === noteId ? { ...note, ...changes } : note)),
+})

@@ -12,6 +12,7 @@ interface ItemDetailsViewProps {
   onUpdate: (changes: Partial<Item>) => void
   onAddNote: (note: Note) => void
   onRemoveNote: (noteId: string) => void
+  onUpdateNote: (noteId: string, changes: Partial<Note>) => void
 }
 
 const ItemDetailsView = ({
@@ -20,6 +21,7 @@ const ItemDetailsView = ({
   onUpdate,
   onAddNote,
   onRemoveNote,
+  onUpdateNote,
 }: ItemDetailsViewProps) => (
   <SwipeBack action={onBack}>
     <Box className="details-view">
@@ -43,7 +45,7 @@ const ItemDetailsView = ({
           <Typography variant="h6" sx={{ marginBottom: 1 }}>
             Notatki
           </Typography>
-          <NotesList notes={item.notes} onRemove={onRemoveNote} />
+          <NotesList notes={item.notes} onRemove={onRemoveNote} onUpdate={onUpdateNote} />
         </Box>
         <Divider />
         <NoteComposer onAdd={onAddNote} />

@@ -19,6 +19,30 @@ export function SwipeBack({ children, action }: SwipeBackProps) {
   const startY = useRef<number | null>(null)
   const pointerId = useRef<number | null>(null)
 
+  const beginGesture = (clientX: number, clientY: number) => {
+    if (clientX > EDGE_SIZE) return
+    startX.current = clientX
+    startY.current = clientY
+  }
+
+  const finishGesture = (clientX: number, clientY: number) => {
+    if (startX.current === null || startY.current === null) {
+      resetGesture()
+      return
+    }
+    const deltaX = clientX - startX.current
+    const deltaY = clientY - startY.current
+    if (
+      deltaX >= SWIPE_DISTANCE &&
+      Math.abs(deltaX) > Math.abs(deltaY) &&
+      Math.abs(deltaY) <= MAX_VERTICAL_MOVE
+    ) {
+      if (action) action()
+      else window.history.back()
+    }
+    resetGesture()
+  }
+
   const resetGesture = () => {
     startX.current = null
     startY.current = null
@@ -28,9 +52,8 @@ export function SwipeBack({ children, action }: SwipeBackProps) {
   const handlePointerDown = (
     event: ReactPointerEvent<HTMLDivElement>,
   ) => {
-    if (event.clientX > EDGE_SIZE) return
-    startX.current = event.clientX
-    startY.current = event.clientY
+    beginGesture(event.clientX, event.clientY)
+    if (startX.current === null) return
     pointerId.current = event.pointerId
 
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -48,24 +71,17 @@ export function SwipeBack({ children, action }: SwipeBackProps) {
       return
     }
 
-    const deltaX = event.clientX - startX.current
-    const deltaY = event.clientY - startY.current
+    finishGesture(event.clientX, event.clientY)
+  }
 
-    const movedRight = deltaX >= SWIPE_DISTANCE
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0]
+    if (touch) beginGesture(touch.clientX, touch.clientY)
+  }
 
-    const mostlyHorizontal =
-      Math.abs(deltaX) > Math.abs(deltaY) &&
-      Math.abs(deltaY) <= MAX_VERTICAL_MOVE
-
-    if (movedRight && mostlyHorizontal) {
-      if (action) {
-        action()
-      } else {
-        window.history.back()
-      }
-    }
-
-    resetGesture()
+  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const touch = event.changedTouches[0]
+    if (touch) finishGesture(touch.clientX, touch.clientY)
   }
 
   return (
@@ -73,6 +89,9 @@ export function SwipeBack({ children, action }: SwipeBackProps) {
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={resetGesture}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={resetGesture}
       sx={{
         position: 'relative',
         minHeight: '100dvh',

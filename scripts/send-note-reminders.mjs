@@ -59,7 +59,7 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
       title: `Przypomnienie: ${item.title}`,
       body: `${section.title}${note.content ? ` · ${note.content.slice(0, 100)}` : ''}`,
       tag: deliveryId,
-      url: '/',
+      url: `/?projectId=${encodeURIComponent(projectId)}&itemId=${encodeURIComponent(item.id)}&noteId=${encodeURIComponent(note.id)}`,
     })
 
     for (const [subscriptionId, subscription] of projectSubscriptions) {

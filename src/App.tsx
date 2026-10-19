@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Alert, Container, Snackbar } from '@mui/material'
 import { v4 as uuid } from 'uuid'
 import packageJson from '../package.json'
@@ -28,6 +28,7 @@ type AppView = 'planner' | 'dashboard'
 
 function App() {
   const project = useProjectData()
+  const { projectId, selectProject } = project
   const deadlineNotifications = useDeadlineNotifications(project.data, project.projectId)
   const [activeView, setActiveView] = useState<AppView>('planner')
   const [searchQuery, setSearchQuery] = useState('')
@@ -51,6 +52,13 @@ function App() {
   const [newSectionTitle, setNewSectionTitle] = useState('')
   const [projectIdInput, setProjectIdInput] = useState('')
   const [navigateSectionId, setNavigateSectionId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const targetProjectId = new URLSearchParams(window.location.search).get('projectId')
+    if (targetProjectId && targetProjectId !== projectId) {
+      selectProject(targetProjectId)
+    }
+  }, [projectId, selectProject])
 
   const effectiveSectionOrder = useMemo(
     () => getEffectiveSectionOrder(project.data.sections, sectionOrder),

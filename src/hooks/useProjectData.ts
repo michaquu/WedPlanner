@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { DEFAULT_PROJECT_ID, STORAGE_KEYS } from '../constants'
 import { createSeedData } from '../data/seed'
@@ -56,7 +56,7 @@ export const useProjectData = () => {
     return () => window.clearTimeout(timeout)
   }, [data, projectExists, projectId])
 
-  const selectProject = (nextProjectId: string) => {
+  const selectProject = useCallback((nextProjectId: string) => {
     const value = nextProjectId.trim()
     if (!value) return false
     setProjectId(value)
@@ -65,7 +65,7 @@ export const useProjectData = () => {
     setIsSaving(false)
     writeStorageText(STORAGE_KEYS.projectId, value)
     return true
-  }
+  }, [])
 
   const createNewProject = async () => {
     const nextProjectId = uuid()
