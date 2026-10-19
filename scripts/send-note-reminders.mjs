@@ -1,4 +1,5 @@
-import admin from 'firebase-admin'
+import { cert, getApps, initializeApp } from 'firebase-admin/app'
+import { getDatabase } from 'firebase-admin/database'
 import webpush from 'web-push'
 
 const databaseUrl = process.env.FIREBASE_DATABASE_URL?.replace(/\/$/, '')
@@ -14,12 +15,12 @@ if (!databaseUrl || !vapidPublicKey || !vapidPrivateKey || !serviceAccountJson) 
 }
 
 const serviceAccount = JSON.parse(serviceAccountJson)
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+const app = getApps()[0] ?? initializeApp({
+  credential: cert(serviceAccount),
   databaseURL: databaseUrl,
 })
 
-const database = admin.database()
+const database = getDatabase(app)
 webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
 
 const asArray = (value) => (Array.isArray(value) ? value : Object.values(value ?? {}))
