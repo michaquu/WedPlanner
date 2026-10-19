@@ -1,4 +1,4 @@
-import { cert, getApps, initializeApp } from 'firebase-admin/app'
+import { cert, deleteApp, getApps, initializeApp } from 'firebase-admin/app'
 import { getDatabase } from 'firebase-admin/database'
 import webpush from 'web-push'
 
@@ -24,15 +24,28 @@ const database = getDatabase(app)
 webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
 
 const withTimeout = (promise, label, timeoutMs = 30_000) =>
-  Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs)
-    }),
-  ])
+  new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
+      timeoutMs,
+    )
+    promise.then(
+      (value) => {
+        clearTimeout(timeout)
+        resolve(value)
+      },
+      (error) => {
+        clearTimeout(timeout)
+        reject(error)
+      },
+    )
+  })
 
 const asArray = (value) => (Array.isArray(value) ? value : Object.values(value ?? {}))
+const toFirebaseKey = (value) =>
+  Buffer.from(value, 'utf8').toString('base64url')
 const now = Date.now()
+const stats = { due: 0, sent: 0, failed: 0, alreadyDelivered: 0, noSubscription: 0 }
 console.log('Reading reminder data from Firebase...')
 const [reminderProjects, subscriptions, deliveries] = await Promise.all([
   withTimeout(database.ref('reminderProjects').once('value'), 'reminderProjects read'),
@@ -60,14 +73,23 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
     ),
   )
   const projectSubscriptions = Object.entries(subscriptionIndex[projectId] ?? {})
-  if (!projectSubscriptions.length) continue
 
   for (const { section, item, note } of notes) {
     const reminderAt = Date.parse(note?.reminderAt ?? '')
     if (!Number.isFinite(reminderAt) || reminderAt > now) continue
 
     const deliveryId = `${projectId}:${note.id}:${note.reminderAt}`
-    if (deliveryIndex[projectId]?.[deliveryId]) continue
+    const deliveryKey = toFirebaseKey(deliveryId)
+    if (deliveryIndex[projectId]?.[deliveryKey]) {
+      stats.alreadyDelivered += 1
+      continue
+    }
+    stats.due += 1
+    if (!projectSubscriptions.length) {
+      stats.noSubscription += 1
+      console.warn(`Reminder ${deliveryId} has no push subscription.`)
+      continue
+    }
 
     const payload = JSON.stringify({
       title: `Przypomnienie: ${item.title}`,
@@ -76,6 +98,7 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
       url: `/?projectId=${encodeURIComponent(projectId)}&itemId=${encodeURIComponent(item.id)}&noteId=${encodeURIComponent(note.id)}`,
     })
 
+    let sentForReminder = 0
     for (const [subscriptionId, subscription] of projectSubscriptions) {
       try {
         await withTimeout(
@@ -84,6 +107,8 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
           20_000,
         )
         console.log(`Sent reminder ${deliveryId} to subscription ${subscriptionId}.`)
+        stats.sent += 1
+        sentForReminder += 1
       } catch (error) {
         if (error?.statusCode === 404 || error?.statusCode === 410) {
           await withTimeout(
@@ -91,16 +116,22 @@ for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
             `remove subscription ${subscriptionId}`,
           )
         } else {
+          stats.failed += 1
           console.error(`Push failed for ${projectId}/${subscriptionId}`, error)
         }
       }
     }
 
-    await withTimeout(
-      database.ref(`pushDeliveries/${projectId}/${deliveryId}`).set(new Date().toISOString()),
-      `save delivery ${deliveryId}`,
-    )
+    if (sentForReminder > 0) {
+      await withTimeout(
+        database.ref(`pushDeliveries/${projectId}/${deliveryKey}`).set(new Date().toISOString()),
+        `save delivery ${deliveryId}`,
+      )
+    }
   }
 }
 
-console.log('Reminder check completed.')
+console.log(
+  `Reminder check completed. Due: ${stats.due}; sent: ${stats.sent}; failed: ${stats.failed}; no subscription: ${stats.noSubscription}; already delivered: ${stats.alreadyDelivered}.`,
+)
+await deleteApp(app)
