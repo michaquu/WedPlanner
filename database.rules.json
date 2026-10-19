@@ -12,7 +12,7 @@
         ".read": "auth != null",
         "$subscriptionId": {
           ".read": "auth != null",
-          ".write": "auth != null"
+          ".write": true
         }
       }
     },
@@ -20,14 +20,14 @@
       "$projectId": {
         ".read": "auth != null",
         "$deliveryId": {
-          ".write": "auth != null"
+          ".write": false
         }
       }
     },
     "reminderProjects": {
       "$projectId": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": true
       }
     }
   }

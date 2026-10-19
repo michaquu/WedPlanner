@@ -1,5 +1,5 @@
+import admin from 'firebase-admin'
 import webpush from 'web-push'
-import { GoogleAuth } from 'google-auth-library'
 
 const databaseUrl = process.env.FIREBASE_DATABASE_URL?.replace(/\/$/, '')
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY
@@ -13,55 +13,38 @@ if (!databaseUrl || !vapidPublicKey || !vapidPrivateKey || !serviceAccountJson) 
   )
 }
 
-webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
-
-const credentials = JSON.parse(serviceAccountJson)
-const auth = new GoogleAuth({
-  credentials,
-  scopes: ['https://www.googleapis.com/auth/firebase.database'],
+const serviceAccount = JSON.parse(serviceAccountJson)
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: databaseUrl,
 })
-const client = await auth.getClient()
-const accessToken = await client.getAccessToken()
-const authHeaders = { Authorization: `Bearer ${accessToken.token}` }
 
-const getJson = async (path) => {
-  const response = await fetch(`${databaseUrl}/${path}.json`, { headers: authHeaders })
-  if (!response.ok) throw new Error(`Firebase GET failed: ${response.status}`)
-  return response.json()
-}
-
-const writeJson = async (path, value) => {
-  const response = await fetch(`${databaseUrl}/${path}.json`, {
-    method: 'PUT',
-    headers: { ...authHeaders, 'content-type': 'application/json' },
-    body: JSON.stringify(value),
-  })
-  if (!response.ok) throw new Error(`Firebase PUT failed: ${response.status}`)
-}
-
-const deleteJson = async (path) => {
-  const response = await fetch(`${databaseUrl}/${path}.json`, {
-    method: 'DELETE',
-    headers: authHeaders,
-  })
-  if (!response.ok) throw new Error(`Firebase DELETE failed: ${response.status}`)
-}
+const database = admin.database()
+webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
 
 const asArray = (value) => (Array.isArray(value) ? value : Object.values(value ?? {}))
 const now = Date.now()
-const reminderProjects = await getJson('reminderProjects')
-const subscriptions = await getJson('pushSubscriptions')
-const deliveries = (await getJson('pushDeliveries')) ?? {}
+const [reminderProjects, subscriptions, deliveries] = await Promise.all([
+  database.ref('reminderProjects').once('value'),
+  database.ref('pushSubscriptions').once('value'),
+  database.ref('pushDeliveries').once('value'),
+])
 
-for (const [projectId, indexEntry] of Object.entries(reminderProjects ?? {})) {
+const projectIndex = reminderProjects.val() ?? {}
+const subscriptionIndex = subscriptions.val() ?? {}
+const deliveryIndex = deliveries.val() ?? {}
+
+for (const [projectId, indexEntry] of Object.entries(projectIndex)) {
   if (indexEntry?.active !== true) continue
-  const project = await getJson(`projects/${encodeURIComponent(projectId)}`)
+
+  const projectSnapshot = await database.ref(`projects/${projectId}`).once('value')
+  const project = projectSnapshot.val()
   const notes = asArray(project?.data?.sections).flatMap((section) =>
     asArray(section?.items).flatMap((item) =>
       asArray(item?.notes).map((note) => ({ section, item, note })),
     ),
   )
-  const projectSubscriptions = Object.entries(subscriptions?.[projectId] ?? {})
+  const projectSubscriptions = Object.entries(subscriptionIndex[projectId] ?? {})
   if (!projectSubscriptions.length) continue
 
   for (const { section, item, note } of notes) {
@@ -69,7 +52,7 @@ for (const [projectId, indexEntry] of Object.entries(reminderProjects ?? {})) {
     if (!Number.isFinite(reminderAt) || reminderAt > now) continue
 
     const deliveryId = `${projectId}:${note.id}:${note.reminderAt}`
-    if (deliveries[projectId]?.[deliveryId]) continue
+    if (deliveryIndex[projectId]?.[deliveryId]) continue
 
     const payload = JSON.stringify({
       title: `Przypomnienie: ${item.title}`,
@@ -83,17 +66,13 @@ for (const [projectId, indexEntry] of Object.entries(reminderProjects ?? {})) {
         await webpush.sendNotification(subscription, payload)
       } catch (error) {
         if (error?.statusCode === 404 || error?.statusCode === 410) {
-          await deleteJson(`pushSubscriptions/${projectId}/${subscriptionId}`)
+          await database.ref(`pushSubscriptions/${projectId}/${subscriptionId}`).remove()
         } else {
           console.error(`Push failed for ${projectId}/${subscriptionId}`, error)
         }
       }
     }
 
-    deliveries[projectId] = {
-      ...(deliveries[projectId] ?? {}),
-      [deliveryId]: new Date().toISOString(),
-    }
-    await writeJson(`pushDeliveries/${projectId}/${deliveryId}`, deliveries[projectId][deliveryId])
+    await database.ref(`pushDeliveries/${projectId}/${deliveryId}`).set(new Date().toISOString())
   }
 }
