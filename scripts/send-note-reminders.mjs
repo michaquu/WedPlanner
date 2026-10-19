@@ -1,18 +1,31 @@
 import webpush from 'web-push'
+import { GoogleAuth } from 'google-auth-library'
 
 const databaseUrl = process.env.FIREBASE_DATABASE_URL?.replace(/\/$/, '')
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY
 const vapidSubject = process.env.VAPID_SUBJECT ?? 'mailto:notifications@example.com'
+const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
 
-if (!databaseUrl || !vapidPublicKey || !vapidPrivateKey) {
-  throw new Error('Missing FIREBASE_DATABASE_URL, VAPID_PUBLIC_KEY, or VAPID_PRIVATE_KEY.')
+if (!databaseUrl || !vapidPublicKey || !vapidPrivateKey || !serviceAccountJson) {
+  throw new Error(
+    'Missing FIREBASE_DATABASE_URL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, or FIREBASE_SERVICE_ACCOUNT_JSON.',
+  )
 }
 
 webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
 
+const credentials = JSON.parse(serviceAccountJson)
+const auth = new GoogleAuth({
+  credentials,
+  scopes: ['https://www.googleapis.com/auth/firebase.database'],
+})
+const client = await auth.getClient()
+const accessToken = await client.getAccessToken()
+const authHeaders = { Authorization: `Bearer ${accessToken.token}` }
+
 const getJson = async (path) => {
-  const response = await fetch(`${databaseUrl}/${path}.json`)
+  const response = await fetch(`${databaseUrl}/${path}.json`, { headers: authHeaders })
   if (!response.ok) throw new Error(`Firebase GET failed: ${response.status}`)
   return response.json()
 }
@@ -20,14 +33,17 @@ const getJson = async (path) => {
 const writeJson = async (path, value) => {
   const response = await fetch(`${databaseUrl}/${path}.json`, {
     method: 'PUT',
-    headers: { 'content-type': 'application/json' },
+    headers: { ...authHeaders, 'content-type': 'application/json' },
     body: JSON.stringify(value),
   })
   if (!response.ok) throw new Error(`Firebase PUT failed: ${response.status}`)
 }
 
 const deleteJson = async (path) => {
-  const response = await fetch(`${databaseUrl}/${path}.json`, { method: 'DELETE' })
+  const response = await fetch(`${databaseUrl}/${path}.json`, {
+    method: 'DELETE',
+    headers: authHeaders,
+  })
   if (!response.ok) throw new Error(`Firebase DELETE failed: ${response.status}`)
 }
 

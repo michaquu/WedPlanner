@@ -72,6 +72,7 @@ Add the generated values as GitHub repository secrets:
 - `VAPID_PRIVATE_KEY`
 - `VAPID_SUBJECT` (for example `mailto:your-email@example.com`)
 - `FIREBASE_DATABASE_URL` (for example `https://wedding-planner-nm-default-rtdb.firebaseio.com`)
+- `FIREBASE_SERVICE_ACCOUNT_JSON` (the complete JSON key for a Firebase service account)
 
 The public VAPID key must also be available to the frontend when building the
 PWA as `VITE_VAPID_PUBLIC_KEY`. Configure it in the deployment environment or
@@ -88,3 +89,6 @@ The workflow in `.github/workflows/send-note-reminders.yml` runs every five
 minutes and can also be started manually from the GitHub Actions tab. It reads
 notes with a configured reminder date, sends due notifications, and records
 delivery IDs to avoid sending the same reminder repeatedly.
+
+The service account JSON is used only by GitHub Actions to authenticate its
+Firebase REST requests. Do not commit the JSON file to the repository.
